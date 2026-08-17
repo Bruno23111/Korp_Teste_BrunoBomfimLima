@@ -1,6 +1,7 @@
 using InventoryService.Infrastructure.Persistence;
 using InventoryService.Infrastructure.Persistence.Repositories;
 using InventoryService.Application.Products;
+using InventoryService.Application.Stock;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +19,8 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<InventoryDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IStockMovementRepository, StockMovementRepository>();
+        services.AddScoped<IInventoryUnitOfWork, InventoryUnitOfWork>();
 
         return services;
     }
