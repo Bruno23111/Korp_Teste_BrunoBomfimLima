@@ -28,7 +28,7 @@ public sealed class Product
 
     public decimal AvailableQuantity { get; private set; }
 
-    public byte[] RowVersion { get; private set; } = [];
+    public uint RowVersion { get; private set; }
 
     public StockMovement DecreaseStock(decimal quantity, string operationKey, DateTimeOffset occurredAt)
     {
