@@ -25,6 +25,15 @@ public sealed class ProductRepository(InventoryDbContext context) : IProductRepo
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Product>> GetByIdsForUpdateAsync(
+        IReadOnlyCollection<Guid> productIds,
+        CancellationToken cancellationToken)
+    {
+        return await context.Products
+            .Where(product => productIds.Contains(product.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(Product product, CancellationToken cancellationToken)
     {
         context.Products.Add(product);

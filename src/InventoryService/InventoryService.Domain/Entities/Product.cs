@@ -39,7 +39,7 @@ public sealed class Product
 
         if (quantity > AvailableQuantity)
         {
-            throw new InvalidOperationException("Insufficient stock for this operation.");
+            throw new InsufficientStockException(Id, AvailableQuantity, quantity);
         }
 
         AvailableQuantity -= quantity;

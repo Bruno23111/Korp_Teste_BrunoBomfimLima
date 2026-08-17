@@ -24,7 +24,7 @@ public sealed class ProductTests
     {
         var product = new Product("PRD-001", "Notebook", 1);
 
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<InsufficientStockException>(() =>
             product.DecreaseStock(2, "print-invoice-1", DateTimeOffset.UtcNow));
 
         Assert.Equal(1, product.AvailableQuantity);
