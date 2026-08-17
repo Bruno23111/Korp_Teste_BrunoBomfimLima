@@ -46,7 +46,13 @@ public sealed class InvoicesController(IInvoiceService invoiceService, IPrintInv
         catch (InvoiceNotFoundException) { return NotFound(); }
         catch (PrintInvoiceFailedException exception)
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails { Title = "Inventory service unavailable.", Detail = exception.ErrorCode, Status = StatusCodes.Status503ServiceUnavailable });
+            var status = exception.ErrorCode == "inventory-stock-rejected"
+                ? StatusCodes.Status409Conflict
+                : StatusCodes.Status503ServiceUnavailable;
+            var title = status == StatusCodes.Status409Conflict
+                ? "Inventory rejected the stock decrease."
+                : "Inventory service unavailable.";
+            return StatusCode(status, new ProblemDetails { Title = title, Detail = exception.ErrorCode, Status = status });
         }
         catch (InvalidOperationException exception)
         {

@@ -26,6 +26,12 @@ public sealed class PrintInvoiceService(
         {
             await inventoryStockClient.DecreaseStockAsync($"invoice:{invoice.Id}:print:{operation.IdempotencyKey}", invoice.Items.Select(item => new StockDecreaseItem(item.ProductId, item.Quantity)).ToList(), cancellationToken);
         }
+        catch (InventoryStockRejectedException)
+        {
+            operation.Fail("inventory-stock-rejected");
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            throw new PrintInvoiceFailedException(operation.ErrorCode!);
+        }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
         {
             operation.Fail("inventory-service-unavailable");
