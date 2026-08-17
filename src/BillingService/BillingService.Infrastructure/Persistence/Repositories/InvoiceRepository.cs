@@ -13,6 +13,9 @@ public sealed class InvoiceRepository(BillingDbContext context) : IInvoiceReposi
     public Task<Invoice?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         context.Invoices.AsNoTracking().Include(invoice => invoice.Items).SingleOrDefaultAsync(invoice => invoice.Id == id, cancellationToken);
 
+    public Task<Invoice?> GetByIdForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        context.Invoices.Include(invoice => invoice.Items).SingleOrDefaultAsync(invoice => invoice.Id == id, cancellationToken);
+
     public async Task<IReadOnlyList<Invoice>> GetAllAsync(CancellationToken cancellationToken) =>
         await context.Invoices.AsNoTracking().Include(invoice => invoice.Items).OrderByDescending(invoice => invoice.Number).ToListAsync(cancellationToken);
 

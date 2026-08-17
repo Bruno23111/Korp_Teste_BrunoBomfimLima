@@ -8,6 +8,7 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     public DbSet<Invoice> Invoices => Set<Invoice>();
 
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
+    public DbSet<PrintOperation> PrintOperations => Set<PrintOperation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
