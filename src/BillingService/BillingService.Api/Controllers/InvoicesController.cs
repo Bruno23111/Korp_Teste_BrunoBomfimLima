@@ -1,12 +1,13 @@
 using BillingService.Api.Contracts;
 using BillingService.Application.Invoices;
+using BillingService.Application.Printing;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BillingService.Api.Controllers;
 
 [ApiController]
 [Route("api/invoices")]
-public sealed class InvoicesController(IInvoiceService invoiceService) : ControllerBase
+public sealed class InvoicesController(IInvoiceService invoiceService, IPrintInvoiceService printInvoiceService) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<InvoiceDto>> Create(CreateInvoiceDto request, CancellationToken cancellationToken)
@@ -32,5 +33,24 @@ public sealed class InvoicesController(IInvoiceService invoiceService) : Control
     {
         var invoice = await invoiceService.GetByIdAsync(id, cancellationToken);
         return invoice is null ? NotFound() : Ok(InvoiceDto.From(invoice));
+    }
+
+    [HttpPost("{id:guid}/print")]
+    public async Task<ActionResult<PrintInvoiceResponseDto>> Print(Guid id, PrintInvoiceDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await printInvoiceService.PrintAsync(new PrintInvoiceRequest(id, request.IdempotencyKey), cancellationToken);
+            return Ok(PrintInvoiceResponseDto.From(response));
+        }
+        catch (InvoiceNotFoundException) { return NotFound(); }
+        catch (PrintInvoiceFailedException exception)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails { Title = "Inventory service unavailable.", Detail = exception.ErrorCode, Status = StatusCodes.Status503ServiceUnavailable });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new ProblemDetails { Title = "Invoice cannot be printed.", Detail = exception.Message, Status = StatusCodes.Status409Conflict });
+        }
     }
 }
