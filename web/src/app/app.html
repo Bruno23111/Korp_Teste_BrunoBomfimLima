@@ -1,0 +1,22 @@
+<main>
+  <aside>
+    <div class="brand">KORP<small>INVOICE SYSTEM</small></div>
+    <nav><a class="active">Visão geral</a><a>Produtos</a><a>Notas fiscais</a></nav>
+    <p>Inventory Service<br>Billing Service</p>
+  </aside>
+
+  <section class="content">
+    <header><div><h1>Visão geral</h1><span>Operação integrada de estoque e faturamento</span></div><button (click)="refresh()">Atualizar</button></header>
+    <div class="feedback ok" *ngIf="message">{{ message }}</div>
+    <div class="feedback fail" *ngIf="error">{{ error }}</div>
+
+    <div class="cards"><article><span>Produtos ativos</span><strong>{{ products.length }}</strong></article><article><span>Notas fiscais</span><strong>{{ invoices.length }}</strong></article><article><span>Status</span><strong>{{ loading ? '...' : 'Online' }}</strong></article></div>
+    <div class="forms">
+      <article><h2>Novo produto</h2><input placeholder="Código" [(ngModel)]="product.code"><input placeholder="Descrição" [(ngModel)]="product.description"><input type="number" placeholder="Saldo" [(ngModel)]="product.availableQuantity"><button (click)="createProduct()">Cadastrar produto</button></article>
+      <article><h2>Nova nota fiscal</h2><select [(ngModel)]="invoice.productId"><option value="">Selecione um produto</option><option *ngFor="let item of products" [value]="item.id">{{ item.code }} - {{ item.description }}</option></select><input type="number" min="0.0001" [(ngModel)]="invoice.quantity"><button (click)="createInvoice()">Criar nota</button></article>
+    </div>
+
+    <article class="panel"><h2>Produtos / Inventory Service</h2><div class="row header"><span>Código</span><span>Descrição</span><span>Saldo</span></div><div class="row" *ngFor="let item of products"><span>{{ item.code }}</span><span>{{ item.description }}</span><strong [class.low]="item.availableQuantity <= 2">{{ item.availableQuantity }}</strong></div></article>
+    <article class="panel"><h2>Notas / Billing Service</h2><div class="row header"><span>Número</span><span>Status</span><span>Ação</span></div><div class="row" *ngFor="let item of invoices"><span>#{{ item.number }}</span><span>{{ item.status === 1 ? 'Aberta' : 'Fechada' }}</span><button *ngIf="item.status === 1" (click)="print(item)">Imprimir</button><span *ngIf="item.status !== 1">Concluída</span></div></article>
+  </section>
+</main>
