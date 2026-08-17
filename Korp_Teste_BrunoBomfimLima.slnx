@@ -13,6 +13,7 @@
     <Project Path="src/InventoryService/InventoryService.Infrastructure/InventoryService.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/BillingService.Domain.Tests/BillingService.Domain.Tests.csproj" />
     <Project Path="tests/InventoryService.Domain.Tests/InventoryService.Domain.Tests.csproj" />
   </Folder>
 </Solution>
