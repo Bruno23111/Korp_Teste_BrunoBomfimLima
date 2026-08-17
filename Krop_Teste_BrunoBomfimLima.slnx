@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/BillingService/">
+    <Project Path="src/BillingService/BillingService.Api/BillingService.Api.csproj" />
+    <Project Path="src/BillingService/BillingService.Application/BillingService.Application.csproj" />
+    <Project Path="src/BillingService/BillingService.Domain/BillingService.Domain.csproj" />
+    <Project Path="src/BillingService/BillingService.Infrastructure/BillingService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/InventoryService/">
+    <Project Path="src/InventoryService/InventoryService.Api/InventoryService.Api.csproj" />
+    <Project Path="src/InventoryService/InventoryService.Application/InventoryService.Application.csproj" />
+    <Project Path="src/InventoryService/InventoryService.Domain/InventoryService.Domain.csproj" />
+    <Project Path="src/InventoryService/InventoryService.Infrastructure/InventoryService.Infrastructure.csproj" />
+  </Folder>
+</Solution>
