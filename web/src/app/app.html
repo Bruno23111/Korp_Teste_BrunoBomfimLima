@@ -1,114 +1,478 @@
 <main>
-  <aside>
-    <div class="brand">INVOICE<small>GESTÃO OPERACIONAL</small></div>
+  <aside class="sidebar" aria-label="Navegação principal">
+    <div class="brand-mark" aria-label="Invoice"><i class="pi pi-box"></i></div>
     <nav>
-      <button type="button" [class.active]="view === 'dashboard'" (click)="navigate('dashboard')">Visão geral</button>
-      <button type="button" [class.active]="view === 'products' || view === 'product-form' || view === 'product-edit'" (click)="navigate('products')">Produtos</button>
-      <button type="button" [class.active]="view === 'invoices' || view === 'invoice-form'" (click)="navigate('invoices')">Notas fiscais</button>
+      <p-button
+        type="button"
+        icon="pi pi-home"
+        class="nav-icon"
+        [class.active]="view === 'dashboard'"
+        pTooltip="Visão geral"
+        tooltipPosition="right"
+        (onClick)="navigate('dashboard')"
+        aria-label="Visão geral"
+      ></p-button>
+      <p-button
+        type="button"
+        icon="pi pi-warehouse"
+        class="nav-icon"
+        [class.active]="view === 'products' || view === 'product-form' || view === 'product-edit'"
+        pTooltip="Produtos"
+        tooltipPosition="right"
+        (onClick)="navigate('products')"
+        aria-label="Produtos"
+      ></p-button>
+      <p-button
+        type="button"
+        icon="pi pi-file"
+        class="nav-icon"
+        [class.active]="view === 'invoices' || view === 'invoice-form'"
+        pTooltip="Notas fiscais"
+        tooltipPosition="right"
+        (onClick)="navigate('invoices')"
+        aria-label="Notas fiscais"
+      ></p-button>
     </nav>
-    <p>Inventory Service<br>Billing Service</p>
+    <div class="sidebar-bottom">
+      <i class="pi pi-server" pTooltip="Serviços online" tooltipPosition="right"></i>
+    </div>
   </aside>
 
   <section class="content">
-    <div class="feedback ok" *ngIf="message">{{ message }}</div>
-    <div class="feedback fail" *ngIf="error">{{ error }}</div>
+    <div class="topbar">
+      <div class="brand-copy"><strong>INVOICE</strong><span>GESTÃO OPERACIONAL</span></div>
+      <div class="theme-toggle">
+        <p-toggleswitch [(ngModel)]="darkMode" (onChange)="applyTheme()" inputId="theme-switch">
+        </p-toggleswitch>
+        <i class="pi" [class.pi-sun]="!darkMode" [class.pi-moon]="darkMode"></i>
+      </div>
+    </div>
 
-    <div class="modal-backdrop" *ngIf="showDeleteConfirmation" role="presentation">
-      <section class="confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="delete-product-title">
-        <p class="eyebrow">Ação irreversível</p>
-        <h2 id="delete-product-title">Excluir produto?</h2>
-        <p>O produto será removido do catálogo. Produtos vinculados a uma nota fiscal não podem ser excluídos.</p>
-        <div class="form-actions"><button type="button" class="secondary" (click)="cancelDeleteProduct()">Cancelar</button><button type="button" class="danger-button" (click)="confirmDeleteProduct()">Excluir produto</button></div>
-      </section>
+    <p-dialog
+      header="Excluir produto?"
+      [(visible)]="showDeleteConfirmation"
+      [modal]="true"
+      [style]="{ width: 'min(92vw, 28rem)' }"
+      [draggable]="false"
+    >
+      <p>
+        O produto será removido do catálogo. Produtos vinculados a uma nota fiscal não podem ser
+        excluídos.
+      </p>
+      <ng-template #footer
+        ><p-button
+          type="button"
+          label="Cancelar"
+          severity="secondary"
+          (onClick)="cancelDeleteProduct()"
+        ></p-button
+        ><p-button
+          type="button"
+          label="Excluir produto"
+          severity="danger"
+          (onClick)="confirmDeleteProduct()"
+        ></p-button
+      ></ng-template>
+    </p-dialog>
+
+    <div class="feedback ok" *ngIf="message"><i class="pi pi-check-circle"></i>{{ message }}</div>
+    <div class="feedback fail" *ngIf="error">
+      <i class="pi pi-exclamation-circle"></i>{{ error }}
     </div>
 
     <ng-container *ngIf="view === 'dashboard'">
       <header>
-        <div><p class="eyebrow">Painel operacional</p><h1>Visão geral</h1><span>Acompanhe faturamento e estoque em um só lugar.</span></div>
-        <button type="button" (click)="refresh()">Atualizar dados</button>
+        <div>
+          <p class="eyebrow">Painel operacional</p>
+          <h1>Visão geral</h1>
+          <span>Acompanhe faturamento e estoque em um só lugar.</span>
+        </div>
+        <p-button
+          type="button"
+          label="Atualizar dados"
+          icon="pi pi-refresh"
+          [loading]="loading"
+          (onClick)="refresh()"
+        ></p-button>
       </header>
-
       <div class="cards dashboard-cards">
-        <article><span>Produtos cadastrados</span><strong>{{ products.length }}</strong><small>Disponíveis no catálogo</small></article>
-        <article><span>Estoque baixo</span><strong [class.low]="productsWithLowStock > 0">{{ productsWithLowStock }}</strong><small>Produtos com saldo até 2</small></article>
-        <article><span>Notas em aberto</span><strong>{{ openInvoices }}</strong><small>Prontas para impressão</small></article>
-        <article><span>Status da sincronização</span><strong class="status-value">{{ loading ? '...' : 'Online' }}</strong><small>Serviços conectados</small></article>
+        <article>
+          <i class="pi pi-box"></i><span>Produtos cadastrados</span
+          ><strong>{{ products.length }}</strong
+          ><small>Disponíveis no catálogo</small>
+        </article>
+        <article>
+          <i class="pi pi-exclamation-triangle warning"></i><span>Estoque baixo</span
+          ><strong [class.low]="productsWithLowStock > 0">{{ productsWithLowStock }}</strong
+          ><small>Produtos com saldo até 2</small>
+        </article>
+        <article>
+          <i class="pi pi-file"></i><span>Notas em aberto</span><strong>{{ openInvoices }}</strong
+          ><small>Prontas para impressão</small>
+        </article>
+        <article>
+          <i class="pi pi-server success"></i><span>Status da sincronização</span
+          ><strong class="status-value">{{ loading ? '...' : 'Online' }}</strong
+          ><small>Serviços conectados</small>
+        </article>
       </div>
-
       <div class="dashboard-grid">
         <article class="panel chart-panel">
-          <div class="panel-heading"><div><p class="eyebrow">Inventário</p><h2>Saldo dos produtos</h2></div><button type="button" class="text-button" (click)="navigate('products')">Ver produtos</button></div>
-          <div class="bar-chart" *ngIf="stockChart.length; else emptyProducts">
-            <div class="bar-item" *ngFor="let product of stockChart">
-              <span class="bar-value">{{ product.availableQuantity }}</span>
-              <div class="bar-track"><div class="bar" [style.height.%]="(product.availableQuantity / maxStock) * 100"></div></div>
-              <span class="bar-label">{{ product.code }}</span>
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Inventário</p>
+              <h2>Saldo dos produtos</h2>
+            </div>
+            <p-button
+              type="button"
+              label="Ver produtos"
+              severity="secondary"
+              [text]="true"
+              (onClick)="navigate('products')"
+            ></p-button>
+          </div>
+          <p-chart
+            *ngIf="stockChart.length; else emptyProducts"
+            type="bar"
+            [data]="stockChartData"
+            [options]="stockChartOptions"
+            height="240px"
+          ></p-chart
+          ><ng-template #emptyProducts
+            ><div class="empty-state">Nenhum produto cadastrado ainda.</div></ng-template
+          >
+        </article>
+        <article class="panel activity-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Faturamento</p>
+              <h2>Notas recentes</h2>
+            </div>
+            <p-button
+              type="button"
+              label="Ver notas"
+              severity="secondary"
+              [text]="true"
+              (onClick)="navigate('invoices')"
+            ></p-button>
+          </div>
+          <div class="mini-list" *ngIf="invoices.length; else emptyInvoices">
+            <div *ngFor="let invoice of invoices.slice(0, 5)">
+              <span
+                ><strong>#{{ invoice.number }}</strong
+                ><small>{{ invoice.items.length }} item(ns)</small></span
+              ><p-tag
+                [value]="invoice.status === 1 ? 'Aberta' : 'Fechada'"
+                [severity]="invoice.status === 1 ? 'success' : 'secondary'"
+              ></p-tag>
             </div>
           </div>
-          <ng-template #emptyProducts><div class="empty-state">Nenhum produto cadastrado ainda.</div></ng-template>
-        </article>
-
-        <article class="panel activity-panel">
-          <div class="panel-heading"><div><p class="eyebrow">Faturamento</p><h2>Notas recentes</h2></div><button type="button" class="text-button" (click)="navigate('invoices')">Ver notas</button></div>
-          <div class="mini-list" *ngIf="invoices.length; else emptyInvoices">
-            <div *ngFor="let invoice of invoices.slice(0, 5)"><span><strong>#{{ invoice.number }}</strong><small>{{ invoice.items.length }} item(ns)</small></span><span class="badge" [class.closed]="invoice.status !== 1">{{ invoice.status === 1 ? 'Aberta' : 'Fechada' }}</span></div>
-          </div>
-          <ng-template #emptyInvoices><div class="empty-state">Nenhuma nota criada ainda.</div></ng-template>
+          <ng-template #emptyInvoices
+            ><div class="empty-state">Nenhuma nota criada ainda.</div></ng-template
+          >
         </article>
       </div>
     </ng-container>
 
     <ng-container *ngIf="view === 'products'">
-      <header><div><p class="eyebrow">Inventory Service</p><h1>Produtos</h1><span>Consulte saldos e mantenha o catálogo atualizado.</span></div><button type="button" (click)="openNewProduct()">Novo produto</button></header>
+      <header>
+        <div>
+          <p class="eyebrow">Inventory Service</p>
+          <h1>Produtos</h1>
+          <span>Consulte saldos e mantenha o catálogo atualizado.</span>
+        </div>
+        <p-button
+          type="button"
+          label="Novo produto"
+          icon="pi pi-plus"
+          (onClick)="openNewProduct()"
+        ></p-button>
+      </header>
       <article class="panel table-panel">
-        <div class="table-row product-table table-header"><span>Código</span><span>Descrição</span><span>Saldo disponível</span><span>Ação</span></div>
-        <div class="table-row product-table" *ngFor="let product of products"><strong>{{ product.code }}</strong><span>{{ product.description }}</span><span class="quantity" [class.low]="product.availableQuantity <= 2">{{ product.availableQuantity }}</span><button type="button" class="text-button" (click)="editProduct(product)">Editar</button></div>
-        <div class="empty-state" *ngIf="!loading && !products.length">Nenhum produto encontrado. Crie o primeiro produto para começar.</div>
+        <p-table [value]="products" [tableStyle]="{ 'min-width': '40rem' }"
+          ><ng-template #header
+            ><tr>
+              <th>Código</th>
+              <th>Descrição</th>
+              <th>Saldo disponível</th>
+              <th class="align-right">Ação</th>
+            </tr></ng-template
+          ><ng-template #body let-product
+            ><tr>
+              <td>
+                <strong>{{ product.code }}</strong>
+              </td>
+              <td>{{ product.description }}</td>
+              <td>
+                <p-tag
+                  [value]="product.availableQuantity.toString()"
+                  [severity]="product.availableQuantity <= 2 ? 'warn' : 'success'"
+                ></p-tag>
+              </td>
+              <td class="align-right">
+                <p-button
+                  type="button"
+                  icon="pi pi-pencil"
+                  severity="secondary"
+                  [text]="true"
+                  pTooltip="Editar produto"
+                  (onClick)="editProduct(product)"
+                  aria-label="Editar produto"
+                ></p-button>
+              </td></tr></ng-template
+          ><ng-template #emptymessage
+            ><tr>
+              <td colspan="5">
+                <div class="empty-state">
+                  Nenhum produto encontrado. Crie o primeiro produto para começar.
+                </div>
+              </td>
+            </tr></ng-template
+          ></p-table
+        >
       </article>
     </ng-container>
 
-    <ng-container *ngIf="view === 'product-form'">
-      <header><div><p class="eyebrow">Inventory Service</p><h1>Novo produto</h1><span>Informe os dados para disponibilizá-lo no estoque.</span></div><button type="button" class="secondary" (click)="navigate('products')">Voltar</button></header>
+    <ng-container *ngIf="view === 'product-form' || view === 'product-edit'">
+      <header>
+        <div>
+          <p class="eyebrow">Inventory Service</p>
+          <h1>{{ view === 'product-edit' ? 'Editar produto' : 'Novo produto' }}</h1>
+          <span>{{
+            view === 'product-edit'
+              ? 'Altere os dados ou exclua-o do catálogo.'
+              : 'Informe os dados para disponibilizá-lo no estoque.'
+          }}</span>
+        </div>
+        <p-button
+          type="button"
+          label="Voltar"
+          icon="pi pi-arrow-left"
+          severity="secondary"
+          (onClick)="navigate('products')"
+        ></p-button>
+      </header>
       <article class="panel form-panel centered-product-form">
-        <label>Código<input [(ngModel)]="product.code" placeholder="Ex.: PRD-001" maxlength="20"></label>
-        <label>Descrição<input [(ngModel)]="product.description" placeholder="Ex.: Produto de exemplo" maxlength="100"></label>
-        <label>Saldo inicial<input type="number" min="0" step="0.01" [(ngModel)]="product.availableQuantity"></label>
-        <div class="form-actions"><button type="button" class="secondary" (click)="navigate('products')">Cancelar</button><button type="button" [disabled]="!isProductFormValid" (click)="createProduct()">Cadastrar produto</button></div>
-      </article>
-    </ng-container>
-
-    <ng-container *ngIf="view === 'product-edit'">
-      <header><div><p class="eyebrow">Inventory Service</p><h1>Editar produto</h1><span>Altere os dados do produto ou exclua-o do catálogo.</span></div><button type="button" class="secondary" (click)="navigate('products')">Voltar</button></header>
-      <article class="panel form-panel centered-product-form">
-        <label>Código<input [(ngModel)]="product.code" placeholder="Ex.: PRD-001" maxlength="20"></label>
-        <label>Descrição<input [(ngModel)]="product.description" placeholder="Ex.: Produto de exemplo" maxlength="100"></label>
-        <label>Saldo disponível<input type="number" min="0" step="0.01" [(ngModel)]="product.availableQuantity"></label>
-        <div class="form-actions"><button type="button" class="remove-button" (click)="deleteProduct()">Excluir produto</button><span class="form-actions-spacer"></span><button type="button" class="secondary" (click)="navigate('products')">Cancelar</button><button type="button" [disabled]="!isProductFormValid" (click)="updateProduct()">Salvar alterações</button></div>
+        <div>
+          <label for="product-code">Código</label
+          ><input
+            pInputText
+            id="product-code"
+            [(ngModel)]="product.code"
+            placeholder="Ex.: PRD-001"
+            maxlength="20"
+          />
+        </div>
+        <div>
+          <label for="product-description">Descrição</label
+          ><input
+            pInputText
+            id="product-description"
+            [(ngModel)]="product.description"
+            placeholder="Ex.: Produto de exemplo"
+            maxlength="100"
+          />
+        </div>
+        <div>
+          <label for="product-quantity">Saldo disponível</label
+          ><p-inputnumber
+            inputId="product-quantity"
+            [(ngModel)]="product.availableQuantity"
+            [min]="0"
+            [minFractionDigits]="0"
+            [maxFractionDigits]="2"
+            [useGrouping]="false"
+          ></p-inputnumber>
+        </div>
+        <div class="form-actions">
+          <p-button
+            *ngIf="view === 'product-edit'"
+            type="button"
+            label="Excluir"
+            icon="pi pi-trash"
+            severity="danger"
+            [outlined]="true"
+            (onClick)="deleteProduct()"
+          ></p-button
+          ><span></span
+          ><p-button
+            type="button"
+            label="Cancelar"
+            severity="secondary"
+            (onClick)="navigate('products')"
+          ></p-button
+          ><p-button
+            type="button"
+            [label]="view === 'product-edit' ? 'Salvar alterações' : 'Cadastrar produto'"
+            icon="pi pi-check"
+            [disabled]="!isProductFormValid"
+            (onClick)="view === 'product-edit' ? updateProduct() : createProduct()"
+          ></p-button>
+        </div>
       </article>
     </ng-container>
 
     <ng-container *ngIf="view === 'invoices'">
-      <header><div><p class="eyebrow">Billing Service</p><h1>Notas fiscais</h1><span>Crie, acompanhe e imprima as notas emitidas.</span></div><button type="button" (click)="navigate('invoice-form')">Nova nota fiscal</button></header>
+      <header>
+        <div>
+          <p class="eyebrow">Billing Service</p>
+          <h1>Notas fiscais</h1>
+          <span>Crie, acompanhe e imprima as notas emitidas.</span>
+        </div>
+        <p-button
+          type="button"
+          label="Nova nota fiscal"
+          icon="pi pi-plus"
+          (onClick)="navigate('invoice-form')"
+        ></p-button>
+      </header>
       <article class="panel table-panel">
-        <div class="table-row invoice-table table-header"><span>Número</span><span>Itens</span><span>Status</span><span>Ação</span></div>
-        <div class="table-row invoice-table" *ngFor="let invoice of invoices"><strong>#{{ invoice.number }}</strong><span>{{ invoice.items.length }} item(ns)</span><span class="badge" [class.closed]="invoice.status !== 1">{{ invoice.status === 1 ? 'Aberta' : 'Fechada' }}</span><button type="button" *ngIf="invoice.status === 1" (click)="print(invoice)">Imprimir</button><span *ngIf="invoice.status !== 1" class="muted">Concluída</span></div>
-        <div class="empty-state" *ngIf="!loading && !invoices.length">Nenhuma nota encontrada. Crie a primeira nota para começar.</div>
+        <p-table [value]="invoices"
+          ><ng-template #header
+            ><tr>
+              <th>Número</th>
+              <th>Produtos</th>
+              <th>Itens</th>
+              <th>Status</th>
+              <th class="align-right">Ação</th>
+            </tr></ng-template
+          ><ng-template #body let-invoice
+            ><tr>
+              <td>
+                <strong>#{{ invoice.number }}</strong>
+              </td>
+              <td>
+                <span
+                  class="invoice-products"
+                  [pTooltip]="invoice.items.map(item => item.productDescription).join(', ')"
+                >
+                  {{ invoice.items.map(item => item.productCode).join(', ') }}
+                </span>
+              </td>
+              <td>{{ invoice.items.length }} item(ns)</td>
+              <td>
+                <p-tag
+                  [value]="invoice.status === 1 ? 'Aberta' : 'Fechada'"
+                  [severity]="invoice.status === 1 ? 'success' : 'secondary'"
+                ></p-tag>
+              </td>
+              <td class="align-right">
+                <p-button
+                  *ngIf="invoice.status === 1"
+                  type="button"
+                  label="Imprimir"
+                  icon="pi pi-print"
+                  size="small"
+                  (onClick)="print(invoice)"
+                ></p-button
+                ><span *ngIf="invoice.status !== 1" class="muted">Concluída</span>
+              </td>
+            </tr></ng-template
+          ><ng-template #emptymessage
+            ><tr>
+              <td colspan="4">
+                <div class="empty-state">
+                  Nenhuma nota encontrada. Crie a primeira nota para começar.
+                </div>
+              </td>
+            </tr></ng-template
+          ></p-table
+        >
       </article>
     </ng-container>
 
     <ng-container *ngIf="view === 'invoice-form'">
-      <header><div><p class="eyebrow">Billing Service</p><h1>Nova nota fiscal</h1><span>Adicione os produtos que farão parte da emissão.</span></div><button type="button" class="secondary" (click)="navigate('invoices')">Voltar</button></header>
+      <header>
+        <div>
+          <p class="eyebrow">Billing Service</p>
+          <h1>Nova nota fiscal</h1>
+          <span>Adicione os produtos que farão parte da emissão.</span>
+        </div>
+        <p-button
+          type="button"
+          label="Voltar"
+          icon="pi pi-arrow-left"
+          severity="secondary"
+          (onClick)="navigate('invoices')"
+        ></p-button>
+      </header>
       <div class="invoice-form-grid">
         <article class="panel form-panel">
           <h2>Adicionar item</h2>
-          <label>Produto<select [(ngModel)]="invoiceItem.productId"><option value="">Selecione um produto</option><option *ngFor="let product of products" [value]="product.id">{{ product.code }} - {{ product.description }} ({{ product.availableQuantity }})</option></select></label>
-          <label>Quantidade<input type="number" min="0.0001" step="0.01" [(ngModel)]="invoiceItem.quantity"></label>
-          <button type="button" (click)="addInvoiceItem()">Adicionar à nota</button>
+          <div>
+            <label for="invoice-product">Produto</label
+            ><p-select
+              inputId="invoice-product"
+              [(ngModel)]="invoiceItem.productId"
+              [options]="productOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Selecione um produto"
+              [filter]="true"
+              filterBy="label"
+              styleClass="full-width"
+            ></p-select>
+          </div>
+          <div>
+            <label for="invoice-quantity">Quantidade</label
+            ><p-inputnumber
+              inputId="invoice-quantity"
+              [(ngModel)]="invoiceItem.quantity"
+              [min]="0.0001"
+              [minFractionDigits]="0"
+              [maxFractionDigits]="2"
+              [useGrouping]="false"
+            ></p-inputnumber>
+          </div>
+          <p-button
+            type="button"
+            label="Adicionar à nota"
+            icon="pi pi-plus"
+            (onClick)="addInvoiceItem()"
+          ></p-button>
         </article>
-        <article class="panel selected-items"><div class="panel-heading"><div><p class="eyebrow">Rascunho</p><h2>Itens da nota</h2></div><span class="badge">{{ invoiceItems.length }} item(ns)</span></div>
-          <div class="draft-item" *ngFor="let item of invoiceItems"><div><strong>{{ item.productCode }}</strong><span>{{ item.productDescription }}</span></div><span>{{ item.quantity }}</span><button type="button" class="remove-button" (click)="removeInvoiceItem(item.productId)">Remover</button></div>
-          <div class="empty-state" *ngIf="!invoiceItems.length">Adicione produtos para montar a nota.</div>
-          <div class="form-actions"><button type="button" class="secondary" (click)="navigate('invoices')">Cancelar</button><button type="button" [disabled]="!invoiceItems.length" (click)="createInvoice()">Criar nota fiscal</button></div>
+        <article class="panel selected-items">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Rascunho</p>
+              <h2>Itens da nota</h2>
+            </div>
+            <p-tag [value]="invoiceItems.length + ' item(ns)'" severity="info"></p-tag>
+          </div>
+          <div class="draft-item" *ngFor="let item of invoiceItems">
+            <div>
+              <strong>{{ item.productCode }}</strong
+              ><span>{{ item.productDescription }}</span>
+            </div>
+            <span>{{ item.quantity }}</span
+            ><p-button
+              type="button"
+              icon="pi pi-times"
+              severity="danger"
+              [text]="true"
+              pTooltip="Remover item"
+              (onClick)="removeInvoiceItem(item.productId)"
+              aria-label="Remover item"
+            ></p-button>
+          </div>
+          <div class="empty-state" *ngIf="!invoiceItems.length">
+            Adicione produtos para montar a nota.
+          </div>
+          <div class="form-actions">
+            <p-button
+              type="button"
+              label="Cancelar"
+              severity="secondary"
+              (onClick)="navigate('invoices')"
+            ></p-button
+            ><p-button
+              type="button"
+              label="Criar nota fiscal"
+              icon="pi pi-check"
+              [disabled]="!invoiceItems.length"
+              (onClick)="createInvoice()"
+            ></p-button>
+          </div>
         </article>
       </div>
     </ng-container>
