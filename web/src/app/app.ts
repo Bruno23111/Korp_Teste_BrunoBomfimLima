@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { finalize, forkJoin, retry, timer } from 'rxjs';
 
-type View = 'dashboard' | 'products' | 'product-form' | 'invoices' | 'invoice-form';
+type View = 'dashboard' | 'products' | 'product-form' | 'product-edit' | 'invoices' | 'invoice-form';
 
 interface Product {
   id: string;
@@ -43,6 +43,8 @@ export class App {
   error = '';
 
   product = { code: '', description: '', availableQuantity: 0 };
+  editingProductId: string | null = null;
+  showDeleteConfirmation = false;
   invoiceItem = { productId: '', quantity: 1 };
   invoiceItems: InvoiceItem[] = [];
 
@@ -69,6 +71,12 @@ export class App {
 
   get maxStock(): number {
     return Math.max(...this.stockChart.map(product => product.availableQuantity), 1);
+  }
+
+  get isProductFormValid(): boolean {
+    return this.product.code.trim().length > 0 && this.product.code.trim().length <= 20
+      && this.product.description.trim().length > 0 && this.product.description.trim().length <= 100
+      && Number.isFinite(this.product.availableQuantity) && this.product.availableQuantity >= 0;
   }
 
   navigate(view: View): void {
@@ -108,12 +116,73 @@ export class App {
   }
 
   createProduct(): void {
+    if (!this.isProductFormValid) {
+      this.error = 'Preencha os campos obrigatórios com valores válidos.';
+      return;
+    }
+
     this.http.post<Product>('http://localhost:5219/api/products', this.product).subscribe({
       next: product => {
         this.products = [...this.products, product].sort((left, right) => left.code.localeCompare(right.code));
         this.product = { code: '', description: '', availableQuantity: 0 };
         this.navigate('products');
         this.message = 'Produto cadastrado com sucesso.';
+      },
+      error: error => this.fail(error)
+    });
+  }
+
+  openNewProduct(): void {
+    this.product = { code: '', description: '', availableQuantity: 0 };
+    this.editingProductId = null;
+    this.navigate('product-form');
+  }
+
+  editProduct(product: Product): void {
+    this.editingProductId = product.id;
+    this.product = { code: product.code, description: product.description, availableQuantity: product.availableQuantity };
+    this.navigate('product-edit');
+  }
+
+  updateProduct(): void {
+    if (!this.editingProductId || !this.isProductFormValid) {
+      this.error = 'Preencha os campos obrigatórios com valores válidos.';
+      return;
+    }
+
+    this.http.put<Product>(`http://localhost:5219/api/products/${this.editingProductId}`, this.product).subscribe({
+      next: product => {
+        this.products = this.products.map(item => item.id === product.id ? product : item).sort((left, right) => left.code.localeCompare(right.code));
+        this.navigate('products');
+        this.message = 'Produto atualizado com sucesso.';
+      },
+      error: error => this.fail(error)
+    });
+  }
+
+  deleteProduct(): void {
+    if (!this.editingProductId) {
+      return;
+    }
+
+    this.showDeleteConfirmation = true;
+  }
+
+  cancelDeleteProduct(): void {
+    this.showDeleteConfirmation = false;
+  }
+
+  confirmDeleteProduct(): void {
+    if (!this.editingProductId) {
+      return;
+    }
+
+    this.http.delete(`http://localhost:5219/api/products/${this.editingProductId}`).subscribe({
+      next: () => {
+        this.showDeleteConfirmation = false;
+        this.products = this.products.filter(product => product.id !== this.editingProductId);
+        this.navigate('products');
+        this.message = 'Produto excluído com sucesso.';
       },
       error: error => this.fail(error)
     });
@@ -180,7 +249,9 @@ export class App {
 
   private fail(error: any): void {
     this.loading = false;
-    this.error = error?.error?.detail ?? 'Não foi possível concluir a operação. Confirme que as APIs estão em execução.';
+    const validationErrors = Object.values(error?.error?.errors ?? {}).flat().join(' ');
+    this.error = error?.error?.detail || validationErrors || error?.error?.title
+      || 'Não foi possível concluir a operação. Confirme que as APIs estão em execução.';
     this.changeDetector.detectChanges();
   }
 }

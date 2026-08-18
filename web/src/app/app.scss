@@ -26,6 +26,7 @@ button:disabled { cursor: not-allowed; filter: grayscale(.4); opacity: .5; }
 button.secondary { border-color: #49325c; background: rgba(52, 31, 68, .8); box-shadow: none; color: #d9c8e8; }
 button.text-button, button.remove-button { min-height: 0; padding: 4px 0; border: 0; background: transparent; box-shadow: none; color: #d2a7ff; font-size: 12px; }
 button.remove-button { color: #ff9eb2; }
+button.danger-button { border-color: rgba(255, 137, 160, .3); background: linear-gradient(135deg, #ca3e5d, #93243f); }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(199, 145, 255, .42); outline-offset: 2px; }
 
 .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 28px 0; }
@@ -60,9 +61,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .table-header { min-height: 42px; border-top: 0; color: #a998b6; font-size: 11px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; }
 .quantity { font-weight: 700; }
 .invoice-table { grid-template-columns: 1fr 1fr 1fr 120px; }
+.product-table { grid-template-columns: 1fr 2fr 1fr 90px; }
 .muted { color: #9989a5; font-size: 13px; }
 
 .form-panel { display: grid; max-width: 640px; gap: 16px; margin-top: 28px; }
+.centered-product-form { width: min(100%, 640px); margin-right: auto; margin-left: auto; }
 .form-panel label { display: grid; gap: 7px; color: #c5b6d1; font-size: 13px; font-weight: 600; }
 input, select { box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #453258; border-radius: 8px; background: #100a19; color: #faf7ff; font: inherit; font-size: 14px; transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease; }
 input::placeholder { color: #8f7e9b; }
@@ -71,12 +74,18 @@ input:focus, select:focus { border-color: #b574f3; background: #140b20; box-shad
 select { appearance: none; padding-right: 38px; background-image: linear-gradient(45deg, transparent 50%, #cba6ed 50%), linear-gradient(135deg, #cba6ed 50%, transparent 50%); background-position: calc(100% - 18px) 19px, calc(100% - 13px) 19px; background-repeat: no-repeat; background-size: 5px 5px, 5px 5px; }
 select option { background: #160d22; color: #f7f0ff; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.form-actions-spacer { flex: 1; }
 .selected-items { margin-top: 28px; }
 .draft-item > div { min-width: 0; }
 
-.feedback { margin-bottom: 20px; padding: 12px 14px; border: 1px solid transparent; border-radius: 9px; font-size: 14px; }
+.feedback { position: fixed; top: 20px; right: 20px; z-index: 10; width: min(380px, calc(100vw - 40px)); padding: 12px 14px; border: 1px solid transparent; border-radius: 9px; box-shadow: 0 14px 28px rgba(0, 0, 0, .3); font-size: 14px; }
 .ok { border-color: rgba(89, 216, 137, .25); background: rgba(20, 55, 35, .9); color: #b8f6cd; }
 .fail { border-color: rgba(255, 119, 146, .24); background: rgba(72, 20, 33, .9); color: #ffc0ce; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(6, 3, 10, .72); backdrop-filter: blur(4px); }
+.confirmation-modal { width: min(100%, 420px); padding: 28px; border: 1px solid rgba(255, 165, 183, .22); border-radius: 14px; background: #1b0e27; box-shadow: 0 24px 70px rgba(0, 0, 0, .48); }
+.confirmation-modal h2 { margin-bottom: 10px; }
+.confirmation-modal > p:not(.eyebrow) { color: #c7b5d1; font-size: 14px; line-height: 1.55; }
+.confirmation-modal .form-actions { margin-top: 24px; }
 
 @media (max-width: 920px) { .cards { grid-template-columns: repeat(2, 1fr); } .dashboard-grid, .invoice-form-grid { grid-template-columns: 1fr; } }
-@media (max-width: 720px) { aside { display: none; } .content { padding: 26px 20px; } header { align-items: flex-start; flex-direction: column; } .cards { grid-template-columns: 1fr; } .invoice-table { grid-template-columns: 1fr 1fr; padding: 12px 4px; } .invoice-table > :nth-child(3), .invoice-table > :nth-child(4) { margin-top: 5px; } .table-header { display: none; } }
+@media (max-width: 720px) { aside { display: none; } .content { padding: 26px 20px; } header { align-items: flex-start; flex-direction: column; } .cards { grid-template-columns: 1fr; } .invoice-table, .product-table { grid-template-columns: 1fr 1fr; padding: 12px 4px; } .invoice-table > :nth-child(3), .invoice-table > :nth-child(4), .product-table > :nth-child(3), .product-table > :nth-child(4) { margin-top: 5px; } .table-header { display: none; } }

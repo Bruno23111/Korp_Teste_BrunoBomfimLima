@@ -31,6 +31,9 @@ public sealed class InvoiceService(IInvoiceRepository invoiceRepository) : IInvo
     public async Task<IReadOnlyList<InvoiceResponse>> GetAllAsync(CancellationToken cancellationToken) =>
         (await invoiceRepository.GetAllAsync(cancellationToken)).Select(ToResponse).ToList();
 
+    public Task<bool> HasProductAsync(Guid productId, CancellationToken cancellationToken) =>
+        invoiceRepository.ExistsByProductIdAsync(productId, cancellationToken);
+
     private static InvoiceResponse ToResponse(Invoice invoice) => new(
         invoice.Id, invoice.Number, invoice.Status, invoice.CreatedAt,
         invoice.Items.Select(item => new InvoiceItemResponse(item.Id, item.ProductId, item.ProductCode, item.ProductDescription, item.Quantity)).ToList());

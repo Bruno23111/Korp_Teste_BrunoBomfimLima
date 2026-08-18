@@ -35,6 +35,10 @@ public sealed class InvoicesController(IInvoiceService invoiceService, IPrintInv
         return invoice is null ? NotFound() : Ok(InvoiceDto.From(invoice));
     }
 
+    [HttpGet("products/{productId:guid}/exists")]
+    public async Task<ActionResult<bool>> HasProduct(Guid productId, CancellationToken cancellationToken) =>
+        Ok(await invoiceService.HasProductAsync(productId, cancellationToken));
+
     [HttpPost("{id:guid}/print")]
     public async Task<ActionResult<PrintInvoiceResponseDto>> Print(Guid id, PrintInvoiceDto request, CancellationToken cancellationToken)
     {

@@ -19,6 +19,11 @@ public sealed class InvoiceRepository(BillingDbContext context) : IInvoiceReposi
     public async Task<IReadOnlyList<Invoice>> GetAllAsync(CancellationToken cancellationToken) =>
         await context.Invoices.AsNoTracking().Include(invoice => invoice.Items).OrderByDescending(invoice => invoice.Number).ToListAsync(cancellationToken);
 
+    public Task<bool> ExistsByProductIdAsync(Guid productId, CancellationToken cancellationToken) =>
+        context.Invoices
+            .AsNoTracking()
+            .AnyAsync(invoice => invoice.Items.Any(item => item.ProductId == productId), cancellationToken);
+
     public async Task AddAsync(Invoice invoice, CancellationToken cancellationToken)
     {
         context.Invoices.Add(invoice);
