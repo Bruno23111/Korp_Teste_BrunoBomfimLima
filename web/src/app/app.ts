@@ -3,8 +3,19 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { finalize, forkJoin, retry, timer } from 'rxjs';
+import { ButtonModule } from 'primeng/button';
+import { ChartModule } from 'primeng/chart';
+import { DialogModule } from 'primeng/dialog';
+import { InputNumberModule } from 'primeng/inputnumber';
+import { InputTextModule } from 'primeng/inputtext';
+import { SelectModule } from 'primeng/select';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
+import { TooltipModule } from 'primeng/tooltip';
 
-type View = 'dashboard' | 'products' | 'product-form' | 'product-edit' | 'invoices' | 'invoice-form';
+type View =
+  'dashboard' | 'products' | 'product-form' | 'product-edit' | 'invoices' | 'invoice-form';
 
 interface Product {
   id: string;
@@ -30,17 +41,33 @@ interface Invoice {
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ButtonModule,
+    ChartModule,
+    DialogModule,
+    InputNumberModule,
+    InputTextModule,
+    SelectModule,
+    TableModule,
+    TagModule,
+    ToggleSwitchModule,
+    TooltipModule,
+  ],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrl: './app.scss',
 })
 export class App {
+  private static readonly themeStorageKey = 'korp-theme-v2';
   view: View = 'dashboard';
   products: Product[] = [];
   invoices: Invoice[] = [];
   loading = false;
   message = '';
   error = '';
+  private successTimeout?: ReturnType<typeof setTimeout>;
+  darkMode = false;
 
   product = { code: '', description: '', availableQuantity: 0 };
   editingProductId: string | null = null;
@@ -50,17 +77,21 @@ export class App {
 
   constructor(
     private readonly http: HttpClient,
-    private readonly changeDetector: ChangeDetectorRef
+    private readonly changeDetector: ChangeDetectorRef,
   ) {
-    afterNextRender(() => this.refresh());
+    afterNextRender(() => {
+      this.darkMode = localStorage.getItem(App.themeStorageKey) === 'dark';
+      this.applyTheme();
+      this.refresh();
+    });
   }
 
   get productsWithLowStock(): number {
-    return this.products.filter(product => product.availableQuantity <= 2).length;
+    return this.products.filter((product) => product.availableQuantity <= 2).length;
   }
 
   get openInvoices(): number {
-    return this.invoices.filter(invoice => invoice.status === 1).length;
+    return this.invoices.filter((invoice) => invoice.status === 1).length;
   }
 
   get stockChart(): Product[] {
@@ -70,13 +101,64 @@ export class App {
   }
 
   get maxStock(): number {
-    return Math.max(...this.stockChart.map(product => product.availableQuantity), 1);
+    return Math.max(...this.stockChart.map((product) => product.availableQuantity), 1);
+  }
+
+  get productOptions(): { label: string; value: string }[] {
+    return this.products.map((product) => ({
+      label: `${product.code} - ${product.description} (${product.availableQuantity})`,
+      value: product.id,
+    }));
+  }
+
+  get stockChartData() {
+    return {
+      labels: this.stockChart.map((product) => product.code),
+      datasets: [
+        {
+          label: 'Saldo disponível',
+          data: this.stockChart.map((product) => product.availableQuantity),
+        backgroundColor: this.darkMode ? '#a78bfa' : '#7c3aed',
+        hoverBackgroundColor: this.darkMode ? '#c4b5fd' : '#8b5cf6',
+          borderRadius: 8,
+          borderSkipped: false,
+          maxBarThickness: 46,
+        },
+      ],
+    };
+  }
+
+  get stockChartOptions() {
+    const textColor = this.darkMode ? '#ddd6fe' : '#475569';
+    const gridColor = this.darkMode ? 'rgba(221, 214, 254, .12)' : 'rgba(71, 85, 105, .12)';
+    return {
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: textColor } },
+        y: {
+          beginAtZero: true,
+          grid: { color: gridColor },
+          ticks: { color: textColor, precision: 0 },
+        },
+      },
+    };
+  }
+
+  applyTheme(): void {
+    document.documentElement.classList.toggle('app-dark', this.darkMode);
+    localStorage.setItem(App.themeStorageKey, this.darkMode ? 'dark' : 'light');
   }
 
   get isProductFormValid(): boolean {
-    return this.product.code.trim().length > 0 && this.product.code.trim().length <= 20
-      && this.product.description.trim().length > 0 && this.product.description.trim().length <= 100
-      && Number.isFinite(this.product.availableQuantity) && this.product.availableQuantity >= 0;
+    return (
+      this.product.code.trim().length > 0 &&
+      this.product.code.trim().length <= 20 &&
+      this.product.description.trim().length > 0 &&
+      this.product.description.trim().length <= 100 &&
+      Number.isFinite(this.product.availableQuantity) &&
+      this.product.availableQuantity >= 0
+    );
   }
 
   navigate(view: View): void {
@@ -96,14 +178,14 @@ export class App {
 
     forkJoin({
       products: this.http.get<Product[]>(`http://localhost:5219/api/products${cacheBust}`),
-      invoices: this.http.get<Invoice[]>(`http://localhost:5290/api/invoices${cacheBust}`)
+      invoices: this.http.get<Invoice[]>(`http://localhost:5290/api/invoices${cacheBust}`),
     })
       .pipe(
         retry({ count: 3, delay: () => timer(1000) }),
         finalize(() => {
           this.loading = false;
           this.changeDetector.detectChanges();
-        })
+        }),
       )
       .subscribe({
         next: ({ products, invoices }) => {
@@ -111,7 +193,7 @@ export class App {
           this.invoices = invoices;
           this.changeDetector.detectChanges();
         },
-        error: error => this.fail(error)
+        error: (error) => this.fail(error),
       });
   }
 
@@ -122,13 +204,16 @@ export class App {
     }
 
     this.http.post<Product>('http://localhost:5219/api/products', this.product).subscribe({
-      next: product => {
-        this.products = [...this.products, product].sort((left, right) => left.code.localeCompare(right.code));
+      next: (product) => {
+        this.products = [...this.products, product].sort((left, right) =>
+          left.code.localeCompare(right.code),
+        );
         this.product = { code: '', description: '', availableQuantity: 0 };
         this.navigate('products');
-        this.message = 'Produto cadastrado com sucesso.';
+        this.showSuccess('Produto cadastrado com sucesso.');
+        this.changeDetector.detectChanges();
       },
-      error: error => this.fail(error)
+      error: (error) => this.fail(error),
     });
   }
 
@@ -140,7 +225,11 @@ export class App {
 
   editProduct(product: Product): void {
     this.editingProductId = product.id;
-    this.product = { code: product.code, description: product.description, availableQuantity: product.availableQuantity };
+    this.product = {
+      code: product.code,
+      description: product.description,
+      availableQuantity: product.availableQuantity,
+    };
     this.navigate('product-edit');
   }
 
@@ -150,14 +239,19 @@ export class App {
       return;
     }
 
-    this.http.put<Product>(`http://localhost:5219/api/products/${this.editingProductId}`, this.product).subscribe({
-      next: product => {
-        this.products = this.products.map(item => item.id === product.id ? product : item).sort((left, right) => left.code.localeCompare(right.code));
-        this.navigate('products');
-        this.message = 'Produto atualizado com sucesso.';
-      },
-      error: error => this.fail(error)
-    });
+    this.http
+      .put<Product>(`http://localhost:5219/api/products/${this.editingProductId}`, this.product)
+      .subscribe({
+        next: (product) => {
+          this.products = this.products
+            .map((item) => (item.id === product.id ? product : item))
+            .sort((left, right) => left.code.localeCompare(right.code));
+          this.navigate('products');
+          this.showSuccess('Produto atualizado com sucesso.');
+          this.changeDetector.detectChanges();
+        },
+        error: (error) => this.fail(error),
+      });
   }
 
   deleteProduct(): void {
@@ -180,16 +274,17 @@ export class App {
     this.http.delete(`http://localhost:5219/api/products/${this.editingProductId}`).subscribe({
       next: () => {
         this.showDeleteConfirmation = false;
-        this.products = this.products.filter(product => product.id !== this.editingProductId);
+        this.products = this.products.filter((product) => product.id !== this.editingProductId);
         this.navigate('products');
-        this.message = 'Produto excluído com sucesso.';
+        this.showSuccess('Produto excluído com sucesso.');
+        this.changeDetector.detectChanges();
       },
-      error: error => this.fail(error)
+      error: (error) => this.fail(error),
     });
   }
 
   addInvoiceItem(): void {
-    const product = this.products.find(item => item.id === this.invoiceItem.productId);
+    const product = this.products.find((item) => item.id === this.invoiceItem.productId);
     if (!product) {
       this.error = 'Selecione um produto para adicionar à nota.';
       return;
@@ -200,16 +295,19 @@ export class App {
       return;
     }
 
-    const existingItem = this.invoiceItems.find(item => item.productId === product.id);
+    const existingItem = this.invoiceItems.find((item) => item.productId === product.id);
     if (existingItem) {
       existingItem.quantity += this.invoiceItem.quantity;
     } else {
-      this.invoiceItems = [...this.invoiceItems, {
-        productId: product.id,
-        productCode: product.code,
-        productDescription: product.description,
-        quantity: this.invoiceItem.quantity
-      }];
+      this.invoiceItems = [
+        ...this.invoiceItems,
+        {
+          productId: product.id,
+          productCode: product.code,
+          productDescription: product.description,
+          quantity: this.invoiceItem.quantity,
+        },
+      ];
     }
 
     this.invoiceItem = { productId: '', quantity: 1 };
@@ -217,7 +315,7 @@ export class App {
   }
 
   removeInvoiceItem(productId: string): void {
-    this.invoiceItems = this.invoiceItems.filter(item => item.productId !== productId);
+    this.invoiceItems = this.invoiceItems.filter((item) => item.productId !== productId);
   }
 
   createInvoice(): void {
@@ -226,32 +324,57 @@ export class App {
       return;
     }
 
-    this.http.post<Invoice>('http://localhost:5290/api/invoices', { items: this.invoiceItems }).subscribe({
-      next: invoice => {
-        this.invoices = [invoice, ...this.invoices];
-        this.invoiceItems = [];
-        this.navigate('invoices');
-        this.message = `Nota #${invoice.number} criada com sucesso.`;
-      },
-      error: error => this.fail(error)
-    });
+    this.http
+      .post<Invoice>('http://localhost:5290/api/invoices', { items: this.invoiceItems })
+      .subscribe({
+        next: (invoice) => {
+          this.invoices = [invoice, ...this.invoices];
+          this.invoiceItems = [];
+          this.navigate('invoices');
+          this.showSuccess(`Nota #${invoice.number} criada com sucesso.`);
+          this.changeDetector.detectChanges();
+        },
+        error: (error) => this.fail(error),
+      });
   }
 
   print(invoice: Invoice): void {
-    this.http.post(`http://localhost:5290/api/invoices/${invoice.id}/print`, { idempotencyKey: `ui-${invoice.id}` }).subscribe({
-      next: () => {
-        this.message = `Nota #${invoice.number} impressa e fechada.`;
-        this.refresh();
-      },
-      error: error => this.fail(error)
-    });
+    this.http
+      .post(`http://localhost:5290/api/invoices/${invoice.id}/print`, {
+        idempotencyKey: `ui-${invoice.id}`,
+      })
+      .subscribe({
+        next: () => {
+          this.showSuccess(`Nota #${invoice.number} impressa e fechada.`);
+          this.refresh();
+        },
+        error: (error) => this.fail(error),
+      });
   }
 
   private fail(error: any): void {
     this.loading = false;
-    const validationErrors = Object.values(error?.error?.errors ?? {}).flat().join(' ');
-    this.error = error?.error?.detail || validationErrors || error?.error?.title
-      || 'Não foi possível concluir a operação. Confirme que as APIs estão em execução.';
+    const validationErrors = Object.values(error?.error?.errors ?? {})
+      .flat()
+      .join(' ');
+    this.error =
+      error?.error?.detail ||
+      validationErrors ||
+      error?.error?.title ||
+      'Não foi possível concluir a operação. Confirme que as APIs estão em execução.';
     this.changeDetector.detectChanges();
+  }
+
+  private showSuccess(message: string): void {
+    if (this.successTimeout) {
+      clearTimeout(this.successTimeout);
+    }
+
+    this.message = message;
+    this.error = '';
+    this.successTimeout = setTimeout(() => {
+      this.message = '';
+      this.changeDetector.detectChanges();
+    }, 5000);
   }
 }

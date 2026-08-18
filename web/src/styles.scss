@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import 'primeicons/primeicons.css';
 
 html,
 body {
@@ -9,7 +10,27 @@ body {
 
 body {
   min-width: 320px;
+  background: var(--p-surface-ground);
   font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+html {
+  color-scheme: light;
+  --p-surface-ground: #faf9fd;
+  --p-surface-card: #ffffff;
+  --p-surface-border: #e8e3ef;
+}
+
+html.app-dark {
+  color-scheme: dark;
+  --p-surface-ground: #090909;
+  --p-surface-card: #121212;
+  --p-surface-border: #2a2a2a;
+  --p-primary-color: #a78bfa;
+  --p-primary-contrast-color: #1d1530;
+  --p-primary-hover-color: #c4b5fd;
+  --p-primary-active-color: #8b5cf6;
+  --p-primary-focus-ring-color: rgba(167, 139, 250, 0.35);
 }
 
 app-root {
