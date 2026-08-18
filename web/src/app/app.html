@@ -1,22 +1,97 @@
 <main>
   <aside>
-    <div class="brand">KORP<small>INVOICE SYSTEM</small></div>
-    <nav><a class="active">Visão geral</a><a>Produtos</a><a>Notas fiscais</a></nav>
+    <div class="brand">INVOICE<small>GESTÃO OPERACIONAL</small></div>
+    <nav>
+      <button type="button" [class.active]="view === 'dashboard'" (click)="navigate('dashboard')">Visão geral</button>
+      <button type="button" [class.active]="view === 'products' || view === 'product-form'" (click)="navigate('products')">Produtos</button>
+      <button type="button" [class.active]="view === 'invoices' || view === 'invoice-form'" (click)="navigate('invoices')">Notas fiscais</button>
+    </nav>
     <p>Inventory Service<br>Billing Service</p>
   </aside>
 
   <section class="content">
-    <header><div><h1>Visão geral</h1><span>Operação integrada de estoque e faturamento</span></div><button (click)="refresh()">Atualizar</button></header>
     <div class="feedback ok" *ngIf="message">{{ message }}</div>
     <div class="feedback fail" *ngIf="error">{{ error }}</div>
 
-    <div class="cards"><article><span>Produtos ativos</span><strong>{{ products.length }}</strong></article><article><span>Notas fiscais</span><strong>{{ invoices.length }}</strong></article><article><span>Status</span><strong>{{ loading ? '...' : 'Online' }}</strong></article></div>
-    <div class="forms">
-      <article><h2>Novo produto</h2><input placeholder="Código" [(ngModel)]="product.code"><input placeholder="Descrição" [(ngModel)]="product.description"><input type="number" placeholder="Saldo" [(ngModel)]="product.availableQuantity"><button (click)="createProduct()">Cadastrar produto</button></article>
-      <article><h2>Nova nota fiscal</h2><select [(ngModel)]="invoice.productId"><option value="">Selecione um produto</option><option *ngFor="let item of products" [value]="item.id">{{ item.code }} - {{ item.description }}</option></select><input type="number" min="0.0001" [(ngModel)]="invoice.quantity"><button (click)="createInvoice()">Criar nota</button></article>
-    </div>
+    <ng-container *ngIf="view === 'dashboard'">
+      <header>
+        <div><p class="eyebrow">Painel operacional</p><h1>Visão geral</h1><span>Acompanhe faturamento e estoque em um só lugar.</span></div>
+        <button type="button" (click)="refresh()">Atualizar dados</button>
+      </header>
 
-    <article class="panel"><h2>Produtos / Inventory Service</h2><div class="row header"><span>Código</span><span>Descrição</span><span>Saldo</span></div><div class="row" *ngFor="let item of products"><span>{{ item.code }}</span><span>{{ item.description }}</span><strong [class.low]="item.availableQuantity <= 2">{{ item.availableQuantity }}</strong></div></article>
-    <article class="panel"><h2>Notas / Billing Service</h2><div class="row header"><span>Número</span><span>Status</span><span>Ação</span></div><div class="row" *ngFor="let item of invoices"><span>#{{ item.number }}</span><span>{{ item.status === 1 ? 'Aberta' : 'Fechada' }}</span><button *ngIf="item.status === 1" (click)="print(item)">Imprimir</button><span *ngIf="item.status !== 1">Concluída</span></div></article>
+      <div class="cards dashboard-cards">
+        <article><span>Produtos cadastrados</span><strong>{{ products.length }}</strong><small>Disponíveis no catálogo</small></article>
+        <article><span>Estoque baixo</span><strong [class.low]="productsWithLowStock > 0">{{ productsWithLowStock }}</strong><small>Produtos com saldo até 2</small></article>
+        <article><span>Notas em aberto</span><strong>{{ openInvoices }}</strong><small>Prontas para impressão</small></article>
+        <article><span>Status da sincronização</span><strong class="status-value">{{ loading ? '...' : 'Online' }}</strong><small>Serviços conectados</small></article>
+      </div>
+
+      <div class="dashboard-grid">
+        <article class="panel chart-panel">
+          <div class="panel-heading"><div><p class="eyebrow">Inventário</p><h2>Saldo dos produtos</h2></div><button type="button" class="text-button" (click)="navigate('products')">Ver produtos</button></div>
+          <div class="bar-chart" *ngIf="stockChart.length; else emptyProducts">
+            <div class="bar-item" *ngFor="let product of stockChart">
+              <span class="bar-value">{{ product.availableQuantity }}</span>
+              <div class="bar-track"><div class="bar" [style.height.%]="(product.availableQuantity / maxStock) * 100"></div></div>
+              <span class="bar-label">{{ product.code }}</span>
+            </div>
+          </div>
+          <ng-template #emptyProducts><div class="empty-state">Nenhum produto cadastrado ainda.</div></ng-template>
+        </article>
+
+        <article class="panel activity-panel">
+          <div class="panel-heading"><div><p class="eyebrow">Faturamento</p><h2>Notas recentes</h2></div><button type="button" class="text-button" (click)="navigate('invoices')">Ver notas</button></div>
+          <div class="mini-list" *ngIf="invoices.length; else emptyInvoices">
+            <div *ngFor="let invoice of invoices.slice(0, 5)"><span><strong>#{{ invoice.number }}</strong><small>{{ invoice.items.length }} item(ns)</small></span><span class="badge" [class.closed]="invoice.status !== 1">{{ invoice.status === 1 ? 'Aberta' : 'Fechada' }}</span></div>
+          </div>
+          <ng-template #emptyInvoices><div class="empty-state">Nenhuma nota criada ainda.</div></ng-template>
+        </article>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="view === 'products'">
+      <header><div><p class="eyebrow">Inventory Service</p><h1>Produtos</h1><span>Consulte saldos e mantenha o catálogo atualizado.</span></div><button type="button" (click)="navigate('product-form')">Novo produto</button></header>
+      <article class="panel table-panel">
+        <div class="table-row table-header"><span>Código</span><span>Descrição</span><span>Saldo disponível</span></div>
+        <div class="table-row" *ngFor="let product of products"><strong>{{ product.code }}</strong><span>{{ product.description }}</span><span class="quantity" [class.low]="product.availableQuantity <= 2">{{ product.availableQuantity }}</span></div>
+        <div class="empty-state" *ngIf="!loading && !products.length">Nenhum produto encontrado. Crie o primeiro produto para começar.</div>
+      </article>
+    </ng-container>
+
+    <ng-container *ngIf="view === 'product-form'">
+      <header><div><p class="eyebrow">Inventory Service</p><h1>Novo produto</h1><span>Informe os dados para disponibilizá-lo no estoque.</span></div><button type="button" class="secondary" (click)="navigate('products')">Voltar</button></header>
+      <article class="panel form-panel">
+        <label>Código<input [(ngModel)]="product.code" placeholder="Ex.: PRD-001" maxlength="20"></label>
+        <label>Descrição<input [(ngModel)]="product.description" placeholder="Ex.: Produto de exemplo" maxlength="100"></label>
+        <label>Saldo inicial<input type="number" min="0" step="0.01" [(ngModel)]="product.availableQuantity"></label>
+        <div class="form-actions"><button type="button" class="secondary" (click)="navigate('products')">Cancelar</button><button type="button" (click)="createProduct()">Cadastrar produto</button></div>
+      </article>
+    </ng-container>
+
+    <ng-container *ngIf="view === 'invoices'">
+      <header><div><p class="eyebrow">Billing Service</p><h1>Notas fiscais</h1><span>Crie, acompanhe e imprima as notas emitidas.</span></div><button type="button" (click)="navigate('invoice-form')">Nova nota fiscal</button></header>
+      <article class="panel table-panel">
+        <div class="table-row invoice-table table-header"><span>Número</span><span>Itens</span><span>Status</span><span>Ação</span></div>
+        <div class="table-row invoice-table" *ngFor="let invoice of invoices"><strong>#{{ invoice.number }}</strong><span>{{ invoice.items.length }} item(ns)</span><span class="badge" [class.closed]="invoice.status !== 1">{{ invoice.status === 1 ? 'Aberta' : 'Fechada' }}</span><button type="button" *ngIf="invoice.status === 1" (click)="print(invoice)">Imprimir</button><span *ngIf="invoice.status !== 1" class="muted">Concluída</span></div>
+        <div class="empty-state" *ngIf="!loading && !invoices.length">Nenhuma nota encontrada. Crie a primeira nota para começar.</div>
+      </article>
+    </ng-container>
+
+    <ng-container *ngIf="view === 'invoice-form'">
+      <header><div><p class="eyebrow">Billing Service</p><h1>Nova nota fiscal</h1><span>Adicione os produtos que farão parte da emissão.</span></div><button type="button" class="secondary" (click)="navigate('invoices')">Voltar</button></header>
+      <div class="invoice-form-grid">
+        <article class="panel form-panel">
+          <h2>Adicionar item</h2>
+          <label>Produto<select [(ngModel)]="invoiceItem.productId"><option value="">Selecione um produto</option><option *ngFor="let product of products" [value]="product.id">{{ product.code }} - {{ product.description }} ({{ product.availableQuantity }})</option></select></label>
+          <label>Quantidade<input type="number" min="0.0001" step="0.01" [(ngModel)]="invoiceItem.quantity"></label>
+          <button type="button" (click)="addInvoiceItem()">Adicionar à nota</button>
+        </article>
+        <article class="panel selected-items"><div class="panel-heading"><div><p class="eyebrow">Rascunho</p><h2>Itens da nota</h2></div><span class="badge">{{ invoiceItems.length }} item(ns)</span></div>
+          <div class="draft-item" *ngFor="let item of invoiceItems"><div><strong>{{ item.productCode }}</strong><span>{{ item.productDescription }}</span></div><span>{{ item.quantity }}</span><button type="button" class="remove-button" (click)="removeInvoiceItem(item.productId)">Remover</button></div>
+          <div class="empty-state" *ngIf="!invoiceItems.length">Adicione produtos para montar a nota.</div>
+          <div class="form-actions"><button type="button" class="secondary" (click)="navigate('invoices')">Cancelar</button><button type="button" [disabled]="!invoiceItems.length" (click)="createInvoice()">Criar nota fiscal</button></div>
+        </article>
+      </div>
+    </ng-container>
   </section>
 </main>
