@@ -3,7 +3,7 @@
     <div class="brand">INVOICE<small>GESTÃO OPERACIONAL</small></div>
     <nav>
       <button type="button" [class.active]="view === 'dashboard'" (click)="navigate('dashboard')">Visão geral</button>
-      <button type="button" [class.active]="view === 'products' || view === 'product-form'" (click)="navigate('products')">Produtos</button>
+      <button type="button" [class.active]="view === 'products' || view === 'product-form' || view === 'product-edit'" (click)="navigate('products')">Produtos</button>
       <button type="button" [class.active]="view === 'invoices' || view === 'invoice-form'" (click)="navigate('invoices')">Notas fiscais</button>
     </nav>
     <p>Inventory Service<br>Billing Service</p>
@@ -12,6 +12,15 @@
   <section class="content">
     <div class="feedback ok" *ngIf="message">{{ message }}</div>
     <div class="feedback fail" *ngIf="error">{{ error }}</div>
+
+    <div class="modal-backdrop" *ngIf="showDeleteConfirmation" role="presentation">
+      <section class="confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="delete-product-title">
+        <p class="eyebrow">Ação irreversível</p>
+        <h2 id="delete-product-title">Excluir produto?</h2>
+        <p>O produto será removido do catálogo. Produtos vinculados a uma nota fiscal não podem ser excluídos.</p>
+        <div class="form-actions"><button type="button" class="secondary" (click)="cancelDeleteProduct()">Cancelar</button><button type="button" class="danger-button" (click)="confirmDeleteProduct()">Excluir produto</button></div>
+      </section>
+    </div>
 
     <ng-container *ngIf="view === 'dashboard'">
       <header>
@@ -50,21 +59,31 @@
     </ng-container>
 
     <ng-container *ngIf="view === 'products'">
-      <header><div><p class="eyebrow">Inventory Service</p><h1>Produtos</h1><span>Consulte saldos e mantenha o catálogo atualizado.</span></div><button type="button" (click)="navigate('product-form')">Novo produto</button></header>
+      <header><div><p class="eyebrow">Inventory Service</p><h1>Produtos</h1><span>Consulte saldos e mantenha o catálogo atualizado.</span></div><button type="button" (click)="openNewProduct()">Novo produto</button></header>
       <article class="panel table-panel">
-        <div class="table-row table-header"><span>Código</span><span>Descrição</span><span>Saldo disponível</span></div>
-        <div class="table-row" *ngFor="let product of products"><strong>{{ product.code }}</strong><span>{{ product.description }}</span><span class="quantity" [class.low]="product.availableQuantity <= 2">{{ product.availableQuantity }}</span></div>
+        <div class="table-row product-table table-header"><span>Código</span><span>Descrição</span><span>Saldo disponível</span><span>Ação</span></div>
+        <div class="table-row product-table" *ngFor="let product of products"><strong>{{ product.code }}</strong><span>{{ product.description }}</span><span class="quantity" [class.low]="product.availableQuantity <= 2">{{ product.availableQuantity }}</span><button type="button" class="text-button" (click)="editProduct(product)">Editar</button></div>
         <div class="empty-state" *ngIf="!loading && !products.length">Nenhum produto encontrado. Crie o primeiro produto para começar.</div>
       </article>
     </ng-container>
 
     <ng-container *ngIf="view === 'product-form'">
       <header><div><p class="eyebrow">Inventory Service</p><h1>Novo produto</h1><span>Informe os dados para disponibilizá-lo no estoque.</span></div><button type="button" class="secondary" (click)="navigate('products')">Voltar</button></header>
-      <article class="panel form-panel">
+      <article class="panel form-panel centered-product-form">
         <label>Código<input [(ngModel)]="product.code" placeholder="Ex.: PRD-001" maxlength="20"></label>
         <label>Descrição<input [(ngModel)]="product.description" placeholder="Ex.: Produto de exemplo" maxlength="100"></label>
         <label>Saldo inicial<input type="number" min="0" step="0.01" [(ngModel)]="product.availableQuantity"></label>
-        <div class="form-actions"><button type="button" class="secondary" (click)="navigate('products')">Cancelar</button><button type="button" (click)="createProduct()">Cadastrar produto</button></div>
+        <div class="form-actions"><button type="button" class="secondary" (click)="navigate('products')">Cancelar</button><button type="button" [disabled]="!isProductFormValid" (click)="createProduct()">Cadastrar produto</button></div>
+      </article>
+    </ng-container>
+
+    <ng-container *ngIf="view === 'product-edit'">
+      <header><div><p class="eyebrow">Inventory Service</p><h1>Editar produto</h1><span>Altere os dados do produto ou exclua-o do catálogo.</span></div><button type="button" class="secondary" (click)="navigate('products')">Voltar</button></header>
+      <article class="panel form-panel centered-product-form">
+        <label>Código<input [(ngModel)]="product.code" placeholder="Ex.: PRD-001" maxlength="20"></label>
+        <label>Descrição<input [(ngModel)]="product.description" placeholder="Ex.: Produto de exemplo" maxlength="100"></label>
+        <label>Saldo disponível<input type="number" min="0" step="0.01" [(ngModel)]="product.availableQuantity"></label>
+        <div class="form-actions"><button type="button" class="remove-button" (click)="deleteProduct()">Excluir produto</button><span class="form-actions-spacer"></span><button type="button" class="secondary" (click)="navigate('products')">Cancelar</button><button type="button" [disabled]="!isProductFormValid" (click)="updateProduct()">Salvar alterações</button></div>
       </article>
     </ng-container>
 

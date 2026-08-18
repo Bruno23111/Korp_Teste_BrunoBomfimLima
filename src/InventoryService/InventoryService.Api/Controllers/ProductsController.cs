@@ -55,4 +55,45 @@ public sealed class ProductsController(IProductService productService) : Control
 
         return product is null ? NotFound() : Ok(ProductDto.From(product));
     }
+
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ProductDto>> Update(Guid id, UpdateProductDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var product = await productService.UpdateAsync(
+                new UpdateProductRequest(id, request.Code, request.Description, request.AvailableQuantity),
+                cancellationToken);
+
+            return product is null ? NotFound() : Ok(ProductDto.From(product));
+        }
+        catch (ProductCodeAlreadyExistsException exception)
+        {
+            return Conflict(new ProblemDetails { Title = "Product code already registered.", Detail = exception.Message, Status = StatusCodes.Status409Conflict });
+        }
+        catch (ProductHasInvoicesException exception)
+        {
+            return Conflict(new ProblemDetails { Title = "Product cannot be changed.", Detail = exception.Message, Status = StatusCodes.Status409Conflict });
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await productService.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
+        }
+        catch (ProductHasInvoicesException exception)
+        {
+            return Conflict(new ProblemDetails { Title = "Product cannot be deleted.", Detail = exception.Message, Status = StatusCodes.Status409Conflict });
+        }
+    }
 }

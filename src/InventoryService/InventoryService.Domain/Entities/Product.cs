@@ -30,6 +30,21 @@ public sealed class Product
 
     public uint RowVersion { get; private set; }
 
+    public void Update(string code, string description, decimal availableQuantity)
+    {
+        var validatedCode = ValidateRequiredText(code, nameof(code));
+        var validatedDescription = ValidateRequiredText(description, nameof(description));
+
+        if (availableQuantity < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(availableQuantity), "Available quantity cannot be negative.");
+        }
+
+        Code = validatedCode;
+        Description = validatedDescription;
+        AvailableQuantity = availableQuantity;
+    }
+
     public StockMovement DecreaseStock(decimal quantity, string operationKey, DateTimeOffset occurredAt)
     {
         if (quantity <= 0)
