@@ -2,11 +2,13 @@ using InventoryService.Api.Contracts;
 using InventoryService.Application.Stock;
 using InventoryService.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace InventoryService.Api.Controllers;
 
 [ApiController]
 [Route("api/stock")]
+[Authorize]
 public sealed class StockController(IStockService stockService) : ControllerBase
 {
     [HttpPost("decreases")]

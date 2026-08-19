@@ -2,7 +2,7 @@ import { afterNextRender, ChangeDetectorRef, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { finalize, forkJoin, retry, timer } from 'rxjs';
+import { finalize, forkJoin } from 'rxjs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ButtonModule } from 'primeng/button';
@@ -15,9 +15,10 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TooltipModule } from 'primeng/tooltip';
+import { AuthService } from './auth.service';
 
 type View =
-  'dashboard' | 'products' | 'product-form' | 'product-edit' | 'invoices' | 'invoice-form';
+  'dashboard' | 'products' | 'product-form' | 'product-edit' | 'invoices' | 'invoice-form' | 'users';
 
 interface Product {
   id: string;
@@ -41,6 +42,14 @@ interface Invoice {
   number: number;
   status: number;
   items: InvoiceItem[];
+  createdAt: string;
+}
+
+interface User {
+  id: string;
+  username: string;
+  role: string;
+  isActive: boolean;
   createdAt: string;
 }
 
@@ -74,6 +83,13 @@ export class App {
   private successTimeout?: ReturnType<typeof setTimeout>;
   private errorTimeout?: ReturnType<typeof setTimeout>;
   darkMode = false;
+  authenticated = false;
+  username = 'admin';
+  password = '';
+  authLoading = false;
+  authError = '';
+  currentUser: { username: string; role: string } | null = null;
+  userMenuOpen = false;
 
   product = { code: '', description: '', availableQuantity: 0, unitPrice: 0 };
   editingProductId: string | null = null;
@@ -82,20 +98,60 @@ export class App {
   invoiceToCancel: Invoice | null = null;
   invoiceItem = { productId: '', quantity: 1 };
   invoiceItems: InvoiceItem[] = [];
+  newUser = { username: '', password: '', role: 'Operator' };
 
   constructor(
     private readonly http: HttpClient,
     private readonly changeDetector: ChangeDetectorRef,
+    private readonly authService: AuthService,
   ) {
     afterNextRender(() => {
+      this.authenticated = !!this.authService.token;
+      this.currentUser = this.authenticated ? this.authService.user : null;
       this.darkMode = localStorage.getItem(App.themeStorageKey) === 'dark';
       this.applyTheme();
-      this.refresh();
+      if (this.authenticated) this.refresh();
     });
+  }
+
+  login(): void {
+    this.authLoading = true;
+    this.authError = '';
+    this.authService.login(this.username, this.password).subscribe({
+      next: (response) => {
+        this.authenticated = true;
+        this.currentUser = { username: response.username, role: response.role };
+        this.view = 'dashboard';
+        this.password = '';
+        this.authLoading = false;
+        this.refresh();
+      },
+      error: () => {
+        this.authError = 'Usuário ou senha inválidos.';
+        this.authLoading = false;
+      },
+    });
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.authenticated = false;
+    this.currentUser = null;
+    this.products = [];
+    this.invoices = [];
+    this.userMenuOpen = false;
+  }
+
+  toggleUserMenu(): void {
+    this.userMenuOpen = !this.userMenuOpen;
   }
 
   get productsWithLowStock(): number {
     return this.products.filter((product) => product.availableQuantity <= 2).length;
+  }
+
+  get isAdmin(): boolean {
+    return this.currentUser?.role === 'Admin';
   }
 
   get openInvoices(): number {
@@ -189,7 +245,26 @@ export class App {
     }
   }
 
+  createUser(): void {
+    if (this.newUser.username.trim().length < 3 || this.newUser.password.length < 8) {
+      this.showError('Informe um usuário válido e uma senha com pelo menos 8 caracteres.');
+      return;
+    }
+
+    this.http.post<User>('http://localhost:5290/api/users', this.newUser).subscribe({
+      next: (user) => {
+        this.newUser = { username: '', password: '', role: 'Operator' };
+        this.showSuccess(`Usuário ${user.username} criado com sucesso.`);
+      },
+      error: (error) => this.fail(error),
+    });
+  }
+
   refresh(): void {
+    if (this.loading) {
+      return;
+    }
+
     this.loading = true;
     this.error = '';
     const cacheBust = `?_=${Date.now()}`;
@@ -199,7 +274,6 @@ export class App {
       invoices: this.http.get<Invoice[]>(`http://localhost:5290/api/invoices${cacheBust}`),
     })
       .pipe(
-        retry({ count: 3, delay: () => timer(1000) }),
         finalize(() => {
           this.loading = false;
           this.changeDetector.detectChanges();
@@ -236,12 +310,18 @@ export class App {
   }
 
   openNewProduct(): void {
+    if (!this.isAdmin) {
+      return;
+    }
     this.product = { code: '', description: '', availableQuantity: 0, unitPrice: 0 };
     this.editingProductId = null;
     this.navigate('product-form');
   }
 
   editProduct(product: Product): void {
+    if (!this.isAdmin) {
+      return;
+    }
     this.editingProductId = product.id;
     this.product = {
       code: product.code,
@@ -555,7 +635,7 @@ export class App {
     }
 
     const invoice = this.invoiceToCancel;
-    this.http.delete<Invoice>(`http://localhost:5290/api/invoices/${invoice.id}`).subscribe({
+    this.http.post<Invoice>(`http://localhost:5290/api/invoices/${invoice.id}/cancel`, {}).subscribe({
       next: (cancelledInvoice) => {
         this.invoices = this.invoices.map((item) =>
           item.id === cancelledInvoice.id ? cancelledInvoice : item,
@@ -576,6 +656,17 @@ export class App {
 
   private fail(error: any): void {
     this.loading = false;
+    if (error?.status === 401) {
+      this.authService.logout();
+      this.authenticated = false;
+      this.currentUser = null;
+      this.products = [];
+      this.invoices = [];
+      this.authError = 'Sua sessão expirou. Entre novamente.';
+      this.changeDetector.detectChanges();
+      return;
+    }
+
     const validationErrors = Object.values(error?.error?.errors ?? {})
       .flat()
       .join(' ');

@@ -2,11 +2,13 @@ using BillingService.Api.Contracts;
 using BillingService.Application.Invoices;
 using BillingService.Application.Printing;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BillingService.Api.Controllers;
 
 [ApiController]
 [Route("api/invoices")]
+[Authorize]
 public sealed class InvoicesController(IInvoiceService invoiceService, IPrintInvoiceService printInvoiceService) : ControllerBase
 {
     [HttpPost]
@@ -43,7 +45,7 @@ public sealed class InvoicesController(IInvoiceService invoiceService, IPrintInv
     public async Task<ActionResult<bool>> HasProduct(Guid productId, CancellationToken cancellationToken) =>
         Ok(await invoiceService.HasProductAsync(productId, cancellationToken));
 
-    [HttpDelete("{id:guid}")]
+    [HttpPost("{id:guid}/cancel")]
     public async Task<ActionResult<InvoiceDto>> Cancel(Guid id, CancellationToken cancellationToken)
     {
         try

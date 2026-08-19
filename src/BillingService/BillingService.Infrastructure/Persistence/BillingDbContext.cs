@@ -10,6 +10,8 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<PrintOperation> PrintOperations => Set<PrintOperation>();
 
+    public DbSet<User> Users => Set<User>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BillingDbContext).Assembly);
