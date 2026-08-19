@@ -24,6 +24,10 @@ public sealed class ProductMapping : IEntityTypeConfiguration<Product>
             .HasPrecision(19, 4)
             .IsRequired();
 
+        builder.Property(product => product.UnitPrice)
+            .HasPrecision(19, 4)
+            .IsRequired();
+
         builder.Property(product => product.RowVersion)
             .HasColumnName("xmin")
             .IsRowVersion();

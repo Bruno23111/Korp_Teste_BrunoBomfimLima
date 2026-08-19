@@ -14,6 +14,9 @@ public sealed class CreateProductDto
 
     [Range(typeof(decimal), "0", "79228162514264337593543950335")]
     public decimal AvailableQuantity { get; init; }
+
+    [Range(typeof(decimal), "0", "79228162514264337593543950335")]
+    public decimal UnitPrice { get; init; }
 }
 
 public sealed class UpdateProductDto
@@ -28,4 +31,7 @@ public sealed class UpdateProductDto
 
     [Range(typeof(decimal), "0", "79228162514264337593543950335")]
     public decimal AvailableQuantity { get; init; }
+
+    [Range(typeof(decimal), "0", "79228162514264337593543950335")]
+    public decimal UnitPrice { get; init; }
 }

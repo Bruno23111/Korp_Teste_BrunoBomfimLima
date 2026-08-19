@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { finalize, forkJoin, retry, timer } from 'rxjs';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { ButtonModule } from 'primeng/button';
 import { ChartModule } from 'primeng/chart';
 import { DialogModule } from 'primeng/dialog';
@@ -22,6 +24,9 @@ interface Product {
   code: string;
   description: string;
   availableQuantity: number;
+  unitPrice: number;
+  totalAvailableValue: number;
+  totalConsumedValue: number;
 }
 
 interface InvoiceItem {
@@ -70,7 +75,7 @@ export class App {
   private errorTimeout?: ReturnType<typeof setTimeout>;
   darkMode = false;
 
-  product = { code: '', description: '', availableQuantity: 0 };
+  product = { code: '', description: '', availableQuantity: 0, unitPrice: 0 };
   editingProductId: string | null = null;
   showDeleteConfirmation = false;
   showCancelInvoiceConfirmation = false;
@@ -168,7 +173,9 @@ export class App {
       this.product.description.trim().length > 0 &&
       this.product.description.trim().length <= 100 &&
       Number.isFinite(this.product.availableQuantity) &&
-      this.product.availableQuantity >= 0
+      this.product.availableQuantity >= 0 &&
+      Number.isFinite(this.product.unitPrice) &&
+      this.product.unitPrice >= 0
     );
   }
 
@@ -219,7 +226,7 @@ export class App {
         this.products = [...this.products, product].sort((left, right) =>
           left.code.localeCompare(right.code),
         );
-        this.product = { code: '', description: '', availableQuantity: 0 };
+        this.product = { code: '', description: '', availableQuantity: 0, unitPrice: 0 };
         this.navigate('products');
         this.showSuccess('Produto cadastrado com sucesso.');
         this.changeDetector.detectChanges();
@@ -229,7 +236,7 @@ export class App {
   }
 
   openNewProduct(): void {
-    this.product = { code: '', description: '', availableQuantity: 0 };
+    this.product = { code: '', description: '', availableQuantity: 0, unitPrice: 0 };
     this.editingProductId = null;
     this.navigate('product-form');
   }
@@ -240,6 +247,7 @@ export class App {
       code: product.code,
       description: product.description,
       availableQuantity: product.availableQuantity,
+      unitPrice: product.unitPrice,
     };
     this.navigate('product-edit');
   }
@@ -378,10 +386,162 @@ export class App {
       .subscribe({
         next: () => {
           this.showSuccess(`Nota #${invoice.number} impressa e fechada.`);
+          const updatedInvoice: Invoice = { ...invoice, status: 2 };
+          this.exportInvoicePdf(updatedInvoice);
           this.refresh();
         },
         error: (error) => this.fail(error),
       });
+  }
+
+  exportInvoicePdf(invoice: Invoice): void {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Primary Brand Header Banner
+    doc.setFillColor(124, 58, 237);
+    doc.rect(0, 0, pageWidth, 24, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.setTextColor(255, 255, 255);
+    doc.text('INVOICE - GESTÃO OPERACIONAL', 14, 16);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Documento Auxiliar de Venda / Nota', pageWidth - 14, 16, { align: 'right' });
+
+    // Invoice Header Details Box
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(14, 30, pageWidth - 28, 30, 2, 2, 'FD');
+
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(8.5);
+    doc.text('NÚMERO DA NOTA', 20, 38);
+    doc.text('DATA DE EMISSÃO', 80, 38);
+    doc.text('STATUS', 145, 38);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`#${invoice.number}`, 20, 46);
+
+    const formattedDate = invoice.createdAt
+      ? new Date(invoice.createdAt).toLocaleString('pt-BR')
+      : new Date().toLocaleString('pt-BR');
+    doc.setFontSize(10.5);
+    doc.text(formattedDate, 80, 46);
+
+    const statusText =
+      invoice.status === 1 ? 'Aberta' : invoice.status === 2 ? 'Fechada / Emitida' : 'Cancelada';
+    doc.setTextColor(
+      invoice.status === 2 ? 22 : 124,
+      invoice.status === 2 ? 101 : 58,
+      invoice.status === 2 ? 52 : 237,
+    );
+    doc.text(statusText, 145, 46);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Identificador: ${invoice.id}`, 20, 55);
+
+    // Prepare table rows
+    let totalQuantity = 0;
+    let totalValue = 0;
+
+    const tableBody = invoice.items.map((item, index) => {
+      totalQuantity += item.quantity;
+      const product = this.products.find(
+        (p) => p.id === item.productId || p.code === item.productCode,
+      );
+      const unitPrice = product?.unitPrice ?? 0;
+      const itemTotal = unitPrice * item.quantity;
+      totalValue += itemTotal;
+
+      return [
+        (index + 1).toString(),
+        item.productCode,
+        item.productDescription,
+        item.quantity.toLocaleString('pt-BR'),
+        unitPrice > 0 ? this.formatCurrency(unitPrice) : '-',
+        itemTotal > 0 ? this.formatCurrency(itemTotal) : '-',
+      ];
+    });
+
+    // Items Table using autoTable
+    autoTable(doc, {
+      startY: 66,
+      head: [['#', 'Código', 'Descrição do Produto', 'Qtd', 'Vl. Unitário', 'Vl. Total']],
+      body: tableBody,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [124, 58, 237],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9,
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 4,
+        textColor: [51, 65, 85],
+      },
+      columnStyles: {
+        0: { cellWidth: 12, halign: 'center' },
+        1: { cellWidth: 32, fontStyle: 'bold' },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 20, halign: 'right' },
+        4: { cellWidth: 30, halign: 'right' },
+        5: { cellWidth: 32, halign: 'right' },
+      },
+    });
+
+    // Summary Box at Bottom
+    const finalY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 8 : 120;
+    const summaryWidth = 85;
+    const summaryX = pageWidth - 14 - summaryWidth;
+
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(summaryX, finalY, summaryWidth, 28, 2, 2, 'FD');
+
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Total de Itens:', summaryX + 6, finalY + 8);
+    doc.text(invoice.items.length.toString(), summaryX + summaryWidth - 6, finalY + 8, {
+      align: 'right',
+    });
+
+    doc.text('Qtd. Total de Peças:', summaryX + 6, finalY + 16);
+    doc.text(totalQuantity.toLocaleString('pt-BR'), summaryX + summaryWidth - 6, finalY + 16, {
+      align: 'right',
+    });
+
+    if (totalValue > 0) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text('Valor Total:', summaryX + 6, finalY + 24);
+      doc.text(this.formatCurrency(totalValue), summaryX + summaryWidth - 6, finalY + 24, {
+        align: 'right',
+      });
+    }
+
+    // Document Footer
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text(
+      `Documento gerado eletronicamente em ${new Date().toLocaleString('pt-BR')}`,
+      14,
+      pageHeight - 10,
+    );
+    doc.text('Invoice System', pageWidth - 14, pageHeight - 10, { align: 'right' });
+
+    // Download PDF
+    doc.save(`nota_fiscal_${invoice.number}.pdf`);
   }
 
   requestCancelInvoice(invoice: Invoice): void {
@@ -457,5 +617,9 @@ export class App {
     };
 
     return messages[message ?? ''] || message || 'Não foi possível concluir a operação. Confirme que as APIs estão em execução.';
+  }
+
+  formatCurrency(value: number): string {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   }
 }

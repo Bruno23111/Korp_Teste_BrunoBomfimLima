@@ -6,7 +6,7 @@ public sealed class Product
     {
     }
 
-    public Product(string code, string description, decimal availableQuantity)
+    public Product(string code, string description, decimal availableQuantity, decimal unitPrice)
     {
         Id = Guid.NewGuid();
         Code = ValidateRequiredText(code, nameof(code));
@@ -18,6 +18,7 @@ public sealed class Product
         }
 
         AvailableQuantity = availableQuantity;
+        UnitPrice = ValidateUnitPrice(unitPrice);
     }
 
     public Guid Id { get; private set; }
@@ -28,9 +29,11 @@ public sealed class Product
 
     public decimal AvailableQuantity { get; private set; }
 
+    public decimal UnitPrice { get; private set; }
+
     public uint RowVersion { get; private set; }
 
-    public void Update(string code, string description, decimal availableQuantity)
+    public void Update(string code, string description, decimal availableQuantity, decimal unitPrice)
     {
         var validatedCode = ValidateRequiredText(code, nameof(code));
         var validatedDescription = ValidateRequiredText(description, nameof(description));
@@ -43,6 +46,7 @@ public sealed class Product
         Code = validatedCode;
         Description = validatedDescription;
         AvailableQuantity = availableQuantity;
+        UnitPrice = ValidateUnitPrice(unitPrice);
     }
 
     public StockMovement DecreaseStock(decimal quantity, string operationKey, DateTimeOffset occurredAt)
@@ -70,5 +74,15 @@ public sealed class Product
         }
 
         return value.Trim();
+    }
+
+    private static decimal ValidateUnitPrice(decimal unitPrice)
+    {
+        if (unitPrice < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(unitPrice), "Unit price cannot be negative.");
+        }
+
+        return unitPrice;
     }
 }
