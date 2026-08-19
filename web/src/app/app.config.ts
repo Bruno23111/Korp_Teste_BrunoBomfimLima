@@ -4,12 +4,13 @@ import {
   provideZoneChangeDetection,
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { providePrimeNG } from 'primeng/config';
 import { definePreset } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
 
 import { routes } from './app.routes';
+import { authInterceptor } from './auth.interceptor';
 
 const KorpPreset = definePreset(Aura, {
   semantic: {
@@ -33,7 +34,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([authInterceptor])),
     providePrimeNG({ theme: { preset: KorpPreset, options: { darkModeSelector: '.app-dark' } } }),
     provideRouter(routes),
   ],

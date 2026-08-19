@@ -1,3 +1,4 @@
+<ng-container *ngIf="authenticated; else loginTemplate">
 <div class="app-layout">
   <header class="navbar" aria-label="Barra superior">
     <div class="navbar-brand">
@@ -6,8 +7,8 @@
     </div>
 
     <div class="navbar-actions">
+
       <div class="theme-toggle" role="region" aria-label="Controle de tema">
-        <span class="theme-label">{{ darkMode ? 'Modo Escuro' : 'Modo Claro' }}</span>
         <p-toggleswitch [(ngModel)]="darkMode" (onChange)="applyTheme()" inputId="theme-switch">
         </p-toggleswitch>
         <i class="pi" [class.pi-sun]="!darkMode" [class.pi-moon]="darkMode"></i>
@@ -49,9 +50,39 @@
           (onClick)="navigate('invoices')"
           aria-label="Notas fiscais"
         ></p-button>
+        <p-button
+          *ngIf="isAdmin"
+          type="button"
+          icon="pi pi-users"
+          class="nav-icon"
+          [class.active]="view === 'users'"
+          pTooltip="Usuários"
+          tooltipPosition="right"
+          (onClick)="navigate('users')"
+          aria-label="Usuários"
+        ></p-button>
       </nav>
       <div class="sidebar-bottom">
-        <i class="pi pi-user" pTooltip="Usuário" tooltipPosition="right"></i>
+        <i
+          class="pi pi-user sidebar-user-icon"
+          [pTooltip]="currentUser?.username ?? 'Usuário'"
+          tooltipPosition="right"
+          role="button"
+          tabindex="0"
+          (click)="toggleUserMenu()"
+          (keydown.enter)="toggleUserMenu()"
+          aria-label="Abrir menu do usuário"
+        ></i>
+        <div class="sidebar-user-drawer" *ngIf="userMenuOpen">
+          <p-button
+            class="sidebar-logout"
+            type="button"
+            label="Sair"
+            icon="pi pi-sign-out"
+            [text]="true"
+            (onClick)="logout()"
+          ></p-button>
+        </div>
       </div>
     </aside>
 
@@ -104,6 +135,7 @@
       </div>
 
       <ng-container *ngIf="view === 'dashboard'">
+        <div class="dashboard-overview">
         <header>
           <div>
             <p class="eyebrow">Painel operacional</p>
@@ -114,6 +146,7 @@
             type="button"
             label="Atualizar dados"
             icon="pi pi-refresh"
+            class="dashboard-refresh-button"
             [loading]="loading"
             (onClick)="refresh()"
           ></p-button>
@@ -134,7 +167,7 @@
             ><small>Prontas para impressão</small>
           </article>
           <article>
-            <i class="pi pi-server success"></i><span>Status da sincronização</span
+            <i class="pi pi-server success sync-status-icon"></i><span>Status da sincronização</span
             ><strong class="status-value">{{ loading ? '...' : 'Online' }}</strong
             ><small>Serviços conectados</small>
           </article>
@@ -195,6 +228,36 @@
             >
           </article>
         </div>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="view === 'users' && isAdmin">
+        <header>
+          <div>
+            <p class="eyebrow">Administração</p>
+            <h1>Novo usuário</h1>
+            <span>Somente administradores podem criar acessos.</span>
+          </div>
+        </header>
+        <div class="form-grid">
+          <article class="panel form-panel">
+            <label for="new-username">Usuário</label>
+            <input pInputText id="new-username" [(ngModel)]="newUser.username" autocomplete="off" />
+            <label for="new-password">Senha</label>
+            <input pInputText id="new-password" type="password" [(ngModel)]="newUser.password" autocomplete="new-password" />
+            <label for="new-role">Papel</label>
+            <p-select
+              id="new-role"
+              [options]="[{ label: 'Operador', value: 'Operator' }, { label: 'Administrador', value: 'Admin' }]"
+              [(ngModel)]="newUser.role"
+              optionLabel="label"
+              optionValue="value"
+            ></p-select>
+            <div class="form-actions">
+              <p-button type="button" label="Criar usuário" icon="pi pi-user-plus" (onClick)="createUser()"></p-button>
+            </div>
+          </article>
+        </div>
       </ng-container>
 
       <ng-container *ngIf="view === 'products'">
@@ -205,6 +268,7 @@
             <span>Consulte saldos e mantenha o catálogo atualizado.</span>
           </div>
           <p-button
+            *ngIf="isAdmin"
             type="button"
             label="Novo produto"
             icon="pi pi-plus"
@@ -221,7 +285,7 @@
                 <th>Valor do produto</th>
                 <th>Valor total disponível</th>
                 <th>Valor total consumido</th>
-                <th class="align-right">Ação</th>
+                <th *ngIf="isAdmin" class="align-right">Ação</th>
               </tr></ng-template
             ><ng-template #body let-product
               ><tr>
@@ -238,20 +302,21 @@
                 <td>{{ formatCurrency(product.unitPrice) }}</td>
                 <td>{{ formatCurrency(product.totalAvailableValue) }}</td>
                 <td>{{ formatCurrency(product.totalConsumedValue) }}</td>
-                <td class="align-right">
+                <td *ngIf="isAdmin" class="align-right">
                   <p-button
                     type="button"
                     icon="pi pi-pencil"
                     severity="secondary"
                     [text]="true"
                     pTooltip="Editar produto"
+                    *ngIf="isAdmin"
                     (onClick)="editProduct(product)"
                     aria-label="Editar produto"
                   ></p-button>
                 </td></tr></ng-template
             ><ng-template #emptymessage
               ><tr>
-                <td colspan="7">
+                <td [attr.colspan]="isAdmin ? 7 : 6">
                   <div class="empty-state">
                     Nenhum produto encontrado. Crie o primeiro produto para começar.
                   </div>
@@ -262,7 +327,7 @@
         </article>
       </ng-container>
 
-      <ng-container *ngIf="view === 'product-form' || view === 'product-edit'">
+      <ng-container *ngIf="isAdmin && (view === 'product-form' || view === 'product-edit')">
         <header>
           <div>
             <p class="eyebrow">Inventory Service</p>
@@ -504,7 +569,7 @@
                 <p class="eyebrow">Rascunho</p>
                 <h2>Itens da nota</h2>
               </div>
-              <p-tag [value]="invoiceItems.length + ' item(ns)'" severity="info"></p-tag>
+              <p-tag class="invoice-item-count" [value]="invoiceItems.length + ' item(ns)'" severity="primary"></p-tag>
             </div>
             <div class="draft-item" *ngFor="let item of invoiceItems">
               <div>
@@ -515,8 +580,8 @@
               ><p-button
                 type="button"
                 icon="pi pi-times"
-                severity="danger"
-                [text]="true"
+                 [text]="true"
+                 class="remove-invoice-item"
                 pTooltip="Remover item"
                 (onClick)="removeInvoiceItem(item.productId)"
                 aria-label="Remover item"
@@ -547,3 +612,21 @@
     </main>
   </div>
 </div>
+</ng-container>
+
+<ng-template #loginTemplate>
+  <main class="login-page">
+    <section class="login-card">
+      <div class="brand-mark"><i class="pi pi-box"></i></div>
+      <p class="eyebrow">Invoice</p>
+      <form (ngSubmit)="login()">
+        <label for="username">Usuário</label>
+        <input pInputText id="username" name="username" [(ngModel)]="username" autocomplete="username" required />
+        <label for="password">Senha</label>
+        <input pInputText id="password" name="password" type="password" [(ngModel)]="password" autocomplete="current-password" required />
+        <div class="feedback fail" *ngIf="authError"><i class="pi pi-exclamation-circle"></i>{{ authError }}</div>
+        <p-button type="submit" label="Entrar" icon="pi pi-sign-in" [loading]="authLoading" [disabled]="!username || !password"></p-button>
+      </form>
+    </section>
+  </main>
+</ng-template>

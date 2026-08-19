@@ -3,6 +3,9 @@ using BillingService.Infrastructure.Persistence.Repositories;
 using BillingService.Infrastructure.Clients;
 using BillingService.Application.Invoices;
 using BillingService.Application.Printing;
+using BillingService.Application.Authentication;
+using BillingService.Infrastructure.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +22,15 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'BillingDatabase' is not configured.");
 
         services.AddDbContext<BillingDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddHttpContextAccessor();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IPasswordService, PasswordService>();
+        services.AddSingleton<IPasswordHasher<BillingService.Domain.Entities.User>, PasswordHasher<BillingService.Domain.Entities.User>>();
+        services.Configure<JwtOptions>(configuration.GetSection("Authentication:Jwt"));
+        services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPrintOperationRepository, PrintOperationRepository>();
         services.AddScoped<IBillingUnitOfWork, BillingUnitOfWork>();
         services.AddHttpClient<IInventoryStockClient, InventoryStockClient>(client =>

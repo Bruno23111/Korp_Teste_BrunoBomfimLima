@@ -19,6 +19,7 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'InventoryDatabase' is not configured.");
 
         services.AddDbContext<InventoryDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddHttpContextAccessor();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
         services.AddScoped<IInventoryUnitOfWork, InventoryUnitOfWork>();

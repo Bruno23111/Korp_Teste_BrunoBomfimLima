@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\InventoryService.Application\InventoryService.Application.csproj" />
     <ProjectReference Include="..\InventoryService.Domain\InventoryService.Domain.csproj" />
   </ItemGroup>
@@ -11,6 +12,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 

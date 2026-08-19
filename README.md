@@ -2,6 +2,21 @@
 
 Aplicação de exemplo para cadastro de produtos, criação de notas fiscais e baixa de estoque no momento da impressão. A solução é formada por duas APIs independentes e uma interface web Angular, com bancos de dados separados por contexto.
 
+## Escopo do desafio
+
+- **Produtos:** cadastro com codigo, nome/descricao e saldo disponivel; o produto deve existir antes de ser usado em uma nota fiscal.
+- **Notas fiscais:** criacao com numeracao sequencial, status `Aberta`/`Fechada` e multiplos produtos com suas respectivas quantidades.
+- **Impressao:** visualizacao em tela, indicador de processamento, baixa do estoque e alteracao do status para `Fechada`; notas que nao estao abertas nao podem ser impressas.
+- **Estoque:** atualizacao da quantidade disponivel conforme os itens efetivamente utilizados na nota.
+- **Arquitetura:** dois microsservicos independentes (Estoque e Faturamento), cada um com banco relacional proprio e integracao HTTP entre contextos.
+- **Falhas:** erros de comunicacao sao tratados e retornados ao usuario com feedback; a impressao e idempotente para evitar baixas duplicadas.
+
+## Decisoes tecnicas registradas
+
+- O front-end usa Angular, componentes, formularios reativos, servicos HTTP e RxJS. Os ciclos de vida sao usados para carregar dados e liberar assinaturas.
+- O back-end e dividido em microsservicos .NET com camadas de dominio, aplicacao, infraestrutura e API. PostgreSQL e usado como banco real em desenvolvimento via Docker Compose.
+- Bibliotecas, frameworks, persistencia, comunicacao, tratamento de erros e idempotencia estao descritos nas secoes abaixo de tecnologias, arquitetura e fluxo de impressao.
+
 ## Funcionalidades
 
 - Cadastro e consulta de produtos, com código único e saldo disponível.
@@ -11,6 +26,8 @@ Aplicação de exemplo para cadastro de produtos, criação de notas fiscais e b
 - Prevenção de duplicidade nas operações de impressão e de baixa de estoque por chave de idempotência.
 - Registro das tentativas de impressão e das movimentações de estoque para auditoria.
 - Interface web para as operações principais.
+- Autenticação com JWT emitido pelo Billing Service e validado pelos dois microsserviços.
+- Criação de novos usuários restrita ao papel `Admin`.
 
 ## Arquitetura
 
@@ -29,6 +46,7 @@ Os contextos são isolados: o **Inventory Service** é responsável por produtos
 flowchart LR
     UI[Angular] --> INV[Inventory Service\nAPI .NET]
     UI --> BILL[Billing Service\nAPI .NET]
+    UI -->|POST /api/auth/login| BILL
     BILL -->|POST /api/stock/decreases| INV
     INV --> IDB[(inventory_db)]
     BILL --> BDB[(billing_db)]
@@ -90,6 +108,8 @@ dotnet run --project src/BillingService/BillingService.Api
 
 As APIs ficam disponíveis em `http://localhost:5219` e `http://localhost:5290`, respectivamente. No ambiente `Development`, os metadados OpenAPI também são expostos pela aplicação.
 
+No ambiente `Development`, o Billing Service cria automaticamente o usuário `admin` com a senha `Admin123!`. O login é feito por `POST /api/auth/login`, e o Angular envia o JWT em todas as chamadas protegidas. Em outros ambientes, configure `Authentication:Jwt:Secret` por variável de ambiente ou secret manager; não reutilize a chave de desenvolvimento.
+
 As migrações estão versionadas nos projetos de infraestrutura. Para aplicá-las manualmente, caso não sejam aplicadas pelo fluxo usado no seu ambiente:
 
 ```powershell
@@ -146,7 +166,26 @@ Exemplo de baixa:
 | `POST` | `/api/invoices` | Cria nota fiscal. |
 | `GET` | `/api/invoices` | Lista notas. |
 | `GET` | `/api/invoices/{id}` | Consulta nota. |
+| `POST` | `/api/invoices/{id}/cancel` | Cancela uma nota aberta, preservando-a no histórico. |
 | `POST` | `/api/invoices/{id}/print` | Imprime e finaliza uma nota aberta. |
+
+### Autenticação
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `POST` | `/api/auth/login` | Valida credenciais e retorna um JWT. |
+| `POST` | `/api/users` | Cria usuário; requer JWT com papel `Admin`. |
+
+Exemplo:
+
+```json
+{
+  "username": "admin",
+  "password": "Admin123!"
+}
+```
+
+O cadastro de usuário aceita os papéis `Admin` e `Operator`, exige senha com pelo menos 8 caracteres e nunca retorna o hash da senha.
 
 Exemplo de criação:
 
@@ -201,3 +240,14 @@ web/                    # Aplicação Angular
 docs/diagrams/          # Diagramas de casos de uso e domínio
 docker-compose.yml      # PostgreSQL local para cada contexto
 ```
+
+## Comportamento responsivo
+
+A interface Angular se adapta a telas menores sem exigir uma versão separada:
+
+- Abaixo de `920px`, os cards passam para duas colunas e os painéis de dashboard/formulário passam a uma coluna.
+- Abaixo de `640px`, a barra lateral é compactada, o conteúdo recebe margem para não ficar sob a navegação, os cards ficam em uma coluna e formulários/tabelas ocupam a largura disponível.
+- Tabelas mantêm rolagem horizontal quando as colunas não cabem na viewport.
+- A tela de login reduz o padding e a largura do cartão para uso em celulares.
+
+Para validar os breakpoints, execute `npm start` dentro de `web` e redimensione o navegador para aproximadamente `640px` e `920px` de largura.
