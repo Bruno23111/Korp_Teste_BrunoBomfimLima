@@ -67,11 +67,14 @@ export class App {
   message = '';
   error = '';
   private successTimeout?: ReturnType<typeof setTimeout>;
+  private errorTimeout?: ReturnType<typeof setTimeout>;
   darkMode = false;
 
   product = { code: '', description: '', availableQuantity: 0 };
   editingProductId: string | null = null;
   showDeleteConfirmation = false;
+  showCancelInvoiceConfirmation = false;
+  invoiceToCancel: Invoice | null = null;
   invoiceItem = { productId: '', quantity: 1 };
   invoiceItems: InvoiceItem[] = [];
 
@@ -92,6 +95,14 @@ export class App {
 
   get openInvoices(): number {
     return this.invoices.filter((invoice) => invoice.status === 1).length;
+  }
+
+  invoiceStatusLabel(status: number): string {
+    return status === 1 ? 'Aberta' : status === 2 ? 'Fechada' : 'Cancelada';
+  }
+
+  invoiceStatusSeverity(status: number): 'success' | 'secondary' | 'danger' {
+    return status === 1 ? 'success' : status === 2 ? 'secondary' : 'danger';
   }
 
   get stockChart(): Product[] {
@@ -199,7 +210,7 @@ export class App {
 
   createProduct(): void {
     if (!this.isProductFormValid) {
-      this.error = 'Preencha os campos obrigatórios com valores válidos.';
+      this.showError('Preencha os campos obrigatórios com valores válidos.');
       return;
     }
 
@@ -235,7 +246,7 @@ export class App {
 
   updateProduct(): void {
     if (!this.editingProductId || !this.isProductFormValid) {
-      this.error = 'Preencha os campos obrigatórios com valores válidos.';
+      this.showError('Preencha os campos obrigatórios com valores válidos.');
       return;
     }
 
@@ -286,18 +297,26 @@ export class App {
   addInvoiceItem(): void {
     const product = this.products.find((item) => item.id === this.invoiceItem.productId);
     if (!product) {
-      this.error = 'Selecione um produto para adicionar à nota.';
+      this.showError('Selecione um produto para adicionar à nota.');
       return;
     }
 
     if (this.invoiceItem.quantity <= 0) {
-      this.error = 'A quantidade deve ser maior que zero.';
+      this.showError('A quantidade deve ser maior que zero.');
       return;
     }
 
     const existingItem = this.invoiceItems.find((item) => item.productId === product.id);
+    const requestedQuantity = (existingItem?.quantity ?? 0) + this.invoiceItem.quantity;
+    if (requestedQuantity > product.availableQuantity) {
+      this.showError(
+        `Quantidade insuficiente para ${product.code}. Disponível: ${product.availableQuantity}; solicitada: ${requestedQuantity}.`,
+      );
+      return;
+    }
+
     if (existingItem) {
-      existingItem.quantity += this.invoiceItem.quantity;
+      existingItem.quantity = requestedQuantity;
     } else {
       this.invoiceItems = [
         ...this.invoiceItems,
@@ -320,7 +339,20 @@ export class App {
 
   createInvoice(): void {
     if (this.invoiceItems.length === 0) {
-      this.error = 'Adicione pelo menos um produto à nota.';
+      this.showError('Adicione pelo menos um produto à nota.');
+      return;
+    }
+
+    const itemWithoutStock = this.invoiceItems.find((item) => {
+      const product = this.products.find((product) => product.id === item.productId);
+      return !product || item.quantity > product.availableQuantity;
+    });
+
+    if (itemWithoutStock) {
+      const product = this.products.find((product) => product.id === itemWithoutStock.productId);
+      this.showError(
+        `Quantidade insuficiente para ${itemWithoutStock.productCode}. Disponível: ${product?.availableQuantity ?? 0}; solicitada: ${itemWithoutStock.quantity}.`,
+      );
       return;
     }
 
@@ -352,17 +384,43 @@ export class App {
       });
   }
 
+  requestCancelInvoice(invoice: Invoice): void {
+    this.invoiceToCancel = invoice;
+    this.showCancelInvoiceConfirmation = true;
+  }
+
+  cancelInvoice(): void {
+    if (!this.invoiceToCancel) {
+      return;
+    }
+
+    const invoice = this.invoiceToCancel;
+    this.http.delete<Invoice>(`http://localhost:5290/api/invoices/${invoice.id}`).subscribe({
+      next: (cancelledInvoice) => {
+        this.invoices = this.invoices.map((item) =>
+          item.id === cancelledInvoice.id ? cancelledInvoice : item,
+        );
+        this.showCancelInvoiceConfirmation = false;
+        this.invoiceToCancel = null;
+        this.showSuccess(`Nota #${invoice.number} cancelada com sucesso.`);
+        this.changeDetector.detectChanges();
+      },
+      error: (error) => this.fail(error),
+    });
+  }
+
+  cancelInvoiceCancellation(): void {
+    this.showCancelInvoiceConfirmation = false;
+    this.invoiceToCancel = null;
+  }
+
   private fail(error: any): void {
     this.loading = false;
     const validationErrors = Object.values(error?.error?.errors ?? {})
       .flat()
       .join(' ');
-    this.error =
-      error?.error?.detail ||
-      validationErrors ||
-      error?.error?.title ||
-      'Não foi possível concluir a operação. Confirme que as APIs estão em execução.';
-    this.changeDetector.detectChanges();
+    const message = error?.error?.detail || error?.error?.title || validationErrors;
+    this.showError(this.friendlyErrorMessage(message));
   }
 
   private showSuccess(message: string): void {
@@ -376,5 +434,28 @@ export class App {
       this.message = '';
       this.changeDetector.detectChanges();
     }, 5000);
+  }
+
+  private showError(message: string): void {
+    if (this.errorTimeout) {
+      clearTimeout(this.errorTimeout);
+    }
+
+    this.error = message;
+    this.message = '';
+    this.changeDetector.detectChanges();
+    this.errorTimeout = setTimeout(() => {
+      this.error = '';
+      this.changeDetector.detectChanges();
+    }, 7000);
+  }
+
+  private friendlyErrorMessage(message?: string): string {
+    const messages: Record<string, string> = {
+      'inventory-stock-rejected': 'O estoque não pôde ser baixado. Verifique a quantidade disponível.',
+      'inventory-service-unavailable': 'O serviço de estoque está indisponível. Tente novamente em instantes.',
+    };
+
+    return messages[message ?? ''] || message || 'Não foi possível concluir a operação. Confirme que as APIs estão em execução.';
   }
 }

@@ -51,6 +51,12 @@ public sealed class Invoice
         Status = InvoiceStatus.Closed;
     }
 
+    public void Cancel()
+    {
+        EnsureOpen();
+        Status = InvoiceStatus.Cancelled;
+    }
+
     private void EnsureOpen()
     {
         if (Status != InvoiceStatus.Open)

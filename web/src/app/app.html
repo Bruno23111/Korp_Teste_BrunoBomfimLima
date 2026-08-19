@@ -75,6 +75,20 @@
       ></ng-template>
     </p-dialog>
 
+    <p-dialog
+      header="Cancelar nota fiscal?"
+      [(visible)]="showCancelInvoiceConfirmation"
+      [modal]="true"
+      [style]="{ width: 'min(92vw, 28rem)' }"
+      [draggable]="false"
+    >
+      <p>A nota será mantida no histórico com o status Cancelada. Essa ação só está disponível para notas abertas.</p>
+      <ng-template #footer>
+        <p-button type="button" label="Voltar" severity="secondary" (onClick)="cancelInvoiceCancellation()"></p-button>
+        <p-button type="button" label="Cancelar nota" severity="danger" (onClick)="cancelInvoice()"></p-button>
+      </ng-template>
+    </p-dialog>
+
     <div class="feedback ok" *ngIf="message"><i class="pi pi-check-circle"></i>{{ message }}</div>
     <div class="feedback fail" *ngIf="error">
       <i class="pi pi-exclamation-circle"></i>{{ error }}
@@ -162,8 +176,8 @@
                 ><strong>#{{ invoice.number }}</strong
                 ><small>{{ invoice.items.length }} item(ns)</small></span
               ><p-tag
-                [value]="invoice.status === 1 ? 'Aberta' : 'Fechada'"
-                [severity]="invoice.status === 1 ? 'success' : 'secondary'"
+                [value]="invoiceStatusLabel(invoice.status)"
+                [severity]="invoiceStatusSeverity(invoice.status)"
               ></p-tag>
             </div>
           </div>
@@ -222,7 +236,7 @@
               </td></tr></ng-template
           ><ng-template #emptymessage
             ><tr>
-              <td colspan="5">
+              <td colspan="4">
                 <div class="empty-state">
                   Nenhum produto encontrado. Crie o primeiro produto para começar.
                 </div>
@@ -332,6 +346,7 @@
             ><tr>
               <th>Número</th>
               <th>Produtos</th>
+              <th>Quantidade</th>
               <th>Itens</th>
               <th>Status</th>
               <th class="align-right">Ação</th>
@@ -349,11 +364,12 @@
                   {{ invoice.items.map(item => item.productCode).join(', ') }}
                 </span>
               </td>
+              <td>{{ invoice.items.map(item => item.quantity).join(', ') }}</td>
               <td>{{ invoice.items.length }} item(ns)</td>
               <td>
                 <p-tag
-                  [value]="invoice.status === 1 ? 'Aberta' : 'Fechada'"
-                  [severity]="invoice.status === 1 ? 'success' : 'secondary'"
+                  [value]="invoiceStatusLabel(invoice.status)"
+                  [severity]="invoiceStatusSeverity(invoice.status)"
                 ></p-tag>
               </td>
               <td class="align-right">
@@ -364,13 +380,24 @@
                   icon="pi pi-print"
                   size="small"
                   (onClick)="print(invoice)"
-                ></p-button
-                ><span *ngIf="invoice.status !== 1" class="muted">Concluída</span>
+                ></p-button>
+                <p-button
+                  *ngIf="invoice.status === 1"
+                  type="button"
+                  icon="pi pi-trash"
+                  severity="danger"
+                  [text]="true"
+                  size="small"
+                  pTooltip="Cancelar nota fiscal"
+                  (onClick)="requestCancelInvoice(invoice)"
+                  aria-label="Cancelar nota fiscal"
+                ></p-button>
+                <span *ngIf="invoice.status !== 1" class="muted">{{ invoiceStatusLabel(invoice.status) }}</span>
               </td>
             </tr></ng-template
           ><ng-template #emptymessage
             ><tr>
-              <td colspan="4">
+              <td colspan="6">
                 <div class="empty-state">
                   Nenhuma nota encontrada. Crie a primeira nota para começar.
                 </div>

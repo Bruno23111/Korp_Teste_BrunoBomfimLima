@@ -31,4 +31,10 @@ public sealed class InvoiceRepository(BillingDbContext context) : IInvoiceReposi
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         { throw new InvoiceNumberAlreadyExistsException(invoice.Number); }
     }
+
+    public async Task UpdateAsync(Invoice invoice, CancellationToken cancellationToken)
+    {
+        context.Invoices.Update(invoice);
+        await context.SaveChangesAsync(cancellationToken);
+    }
 }

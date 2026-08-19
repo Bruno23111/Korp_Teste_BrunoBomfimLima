@@ -49,4 +49,24 @@ public sealed class InvoiceTests
         Assert.Throws<InvalidOperationException>(() =>
             invoice.AddItem(Guid.NewGuid(), "PRD-002", "Mouse", 1));
     }
+
+    [Fact]
+    public void Cancel_WhenInvoiceIsOpen_ChangesStatusToCancelled()
+    {
+        var invoice = new Invoice(1, DateTimeOffset.UtcNow);
+
+        invoice.Cancel();
+
+        Assert.Equal(InvoiceStatus.Cancelled, invoice.Status);
+    }
+
+    [Fact]
+    public void Cancel_WhenInvoiceIsClosed_Throws()
+    {
+        var invoice = new Invoice(1, DateTimeOffset.UtcNow);
+        invoice.AddItem(Guid.NewGuid(), "PRD-001", "Notebook", 1);
+        invoice.Close();
+
+        Assert.Throws<InvalidOperationException>(invoice.Cancel);
+    }
 }
