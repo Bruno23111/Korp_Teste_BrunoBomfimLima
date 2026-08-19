@@ -10,4 +10,5 @@ public interface IInvoiceRepository
     Task<IReadOnlyList<Invoice>> GetAllAsync(CancellationToken cancellationToken);
     Task<bool> ExistsByProductIdAsync(Guid productId, CancellationToken cancellationToken);
     Task AddAsync(Invoice invoice, CancellationToken cancellationToken);
+    Task UpdateAsync(Invoice invoice, CancellationToken cancellationToken);
 }
