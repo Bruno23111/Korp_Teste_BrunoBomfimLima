@@ -19,7 +19,7 @@ public sealed class ProductsController(IProductService productService) : Control
         try
         {
             var product = await productService.CreateAsync(
-                new CreateProductRequest(request.Code, request.Description, request.AvailableQuantity),
+                new CreateProductRequest(request.Code, request.Description, request.AvailableQuantity, request.UnitPrice),
                 cancellationToken);
 
             var response = ProductDto.From(product);
@@ -66,7 +66,7 @@ public sealed class ProductsController(IProductService productService) : Control
         try
         {
             var product = await productService.UpdateAsync(
-                new UpdateProductRequest(id, request.Code, request.Description, request.AvailableQuantity),
+                new UpdateProductRequest(id, request.Code, request.Description, request.AvailableQuantity, request.UnitPrice),
                 cancellationToken);
 
             return product is null ? NotFound() : Ok(ProductDto.From(product));
@@ -75,9 +75,14 @@ public sealed class ProductsController(IProductService productService) : Control
         {
             return Conflict(new ProblemDetails { Title = "Product code already registered.", Detail = exception.Message, Status = StatusCodes.Status409Conflict });
         }
-        catch (ProductHasInvoicesException exception)
+        catch (ProductHasInvoicesException)
         {
-            return Conflict(new ProblemDetails { Title = "Product cannot be changed.", Detail = exception.Message, Status = StatusCodes.Status409Conflict });
+            return Conflict(new ProblemDetails
+            {
+                Title = "Não é possível alterar o produto.",
+                Detail = "Este produto está vinculado a uma nota fiscal e não pode ser alterado.",
+                Status = StatusCodes.Status409Conflict
+            });
         }
     }
 
@@ -91,9 +96,14 @@ public sealed class ProductsController(IProductService productService) : Control
         {
             return await productService.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
         }
-        catch (ProductHasInvoicesException exception)
+        catch (ProductHasInvoicesException)
         {
-            return Conflict(new ProblemDetails { Title = "Product cannot be deleted.", Detail = exception.Message, Status = StatusCodes.Status409Conflict });
+            return Conflict(new ProblemDetails
+            {
+                Title = "Não é possível excluir o produto.",
+                Detail = "Este produto está vinculado a uma nota fiscal e não pode ser excluído.",
+                Status = StatusCodes.Status409Conflict
+            });
         }
     }
 }
