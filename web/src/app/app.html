@@ -1,0 +1,632 @@
+<ng-container *ngIf="authenticated; else loginTemplate">
+<div class="app-layout">
+  <header class="navbar" aria-label="Barra superior">
+    <div class="navbar-brand">
+      <span class="navbar-title">INVOICE</span>
+      <span class="navbar-badge">GESTÃO OPERACIONAL</span>
+    </div>
+
+    <div class="navbar-actions">
+
+      <div class="theme-toggle" role="region" aria-label="Controle de tema">
+        <p-toggleswitch [(ngModel)]="darkMode" (onChange)="applyTheme()" inputId="theme-switch">
+        </p-toggleswitch>
+        <i class="pi" [class.pi-sun]="!darkMode" [class.pi-moon]="darkMode"></i>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <aside class="sidebar" aria-label="Navegação principal">
+      <div class="brand-mark" aria-label="Invoice"><i class="pi pi-box"></i></div>
+      <nav>
+        <p-button
+          type="button"
+          icon="pi pi-home"
+          class="nav-icon"
+          [class.active]="view === 'dashboard'"
+          pTooltip="Visão geral"
+          tooltipPosition="right"
+          (onClick)="navigate('dashboard')"
+          aria-label="Visão geral"
+        ></p-button>
+        <p-button
+          type="button"
+          icon="pi pi-warehouse"
+          class="nav-icon"
+          [class.active]="view === 'products' || view === 'product-form' || view === 'product-edit'"
+          pTooltip="Produtos"
+          tooltipPosition="right"
+          (onClick)="navigate('products')"
+          aria-label="Produtos"
+        ></p-button>
+        <p-button
+          type="button"
+          icon="pi pi-file"
+          class="nav-icon"
+          [class.active]="view === 'invoices' || view === 'invoice-form'"
+          pTooltip="Notas fiscais"
+          tooltipPosition="right"
+          (onClick)="navigate('invoices')"
+          aria-label="Notas fiscais"
+        ></p-button>
+        <p-button
+          *ngIf="isAdmin"
+          type="button"
+          icon="pi pi-users"
+          class="nav-icon"
+          [class.active]="view === 'users'"
+          pTooltip="Usuários"
+          tooltipPosition="right"
+          (onClick)="navigate('users')"
+          aria-label="Usuários"
+        ></p-button>
+      </nav>
+      <div class="sidebar-bottom">
+        <i
+          class="pi pi-user sidebar-user-icon"
+          [pTooltip]="currentUser?.username ?? 'Usuário'"
+          tooltipPosition="right"
+          role="button"
+          tabindex="0"
+          (click)="toggleUserMenu()"
+          (keydown.enter)="toggleUserMenu()"
+          aria-label="Abrir menu do usuário"
+        ></i>
+        <div class="sidebar-user-drawer" *ngIf="userMenuOpen">
+          <p-button
+            class="sidebar-logout"
+            type="button"
+            label="Sair"
+            icon="pi pi-sign-out"
+            [text]="true"
+            (onClick)="logout()"
+          ></p-button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-layout">
+      <section class="content">
+      <p-dialog
+        header="Excluir produto?"
+        [(visible)]="showDeleteConfirmation"
+        [modal]="true"
+        [style]="{ width: 'min(92vw, 28rem)' }"
+        [draggable]="false"
+      >
+        <p>
+          O produto será removido do catálogo. Produtos vinculados a uma nota fiscal não podem ser
+          excluídos.
+        </p>
+        <ng-template #footer
+          ><p-button
+            type="button"
+            label="Cancelar"
+            severity="secondary"
+            (onClick)="cancelDeleteProduct()"
+          ></p-button
+          ><p-button
+            type="button"
+            label="Excluir produto"
+            severity="danger"
+            (onClick)="confirmDeleteProduct()"
+          ></p-button
+        ></ng-template>
+      </p-dialog>
+
+      <p-dialog
+        header="Cancelar nota fiscal?"
+        [(visible)]="showCancelInvoiceConfirmation"
+        [modal]="true"
+        [style]="{ width: 'min(92vw, 28rem)' }"
+        [draggable]="false"
+      >
+        <p>A nota será mantida no histórico com o status Cancelada. Essa ação só está disponível para notas abertas.</p>
+        <ng-template #footer>
+          <p-button type="button" label="Voltar" severity="secondary" (onClick)="cancelInvoiceCancellation()"></p-button>
+          <p-button type="button" label="Cancelar nota" severity="danger" (onClick)="cancelInvoice()"></p-button>
+        </ng-template>
+      </p-dialog>
+
+      <div class="feedback ok" *ngIf="message"><i class="pi pi-check-circle"></i>{{ message }}</div>
+      <div class="feedback fail" *ngIf="error">
+        <i class="pi pi-exclamation-circle"></i>{{ error }}
+      </div>
+
+      <ng-container *ngIf="view === 'dashboard'">
+        <div class="dashboard-overview">
+        <header>
+          <div>
+            <p class="eyebrow">Painel operacional</p>
+            <h1>Visão geral</h1>
+            <span>Acompanhe faturamento e estoque em um só lugar.</span>
+          </div>
+          <p-button
+            type="button"
+            label="Atualizar dados"
+            icon="pi pi-refresh"
+            class="dashboard-refresh-button"
+            [loading]="loading"
+            (onClick)="refresh()"
+          ></p-button>
+        </header>
+        <div class="cards dashboard-cards">
+          <article>
+            <i class="pi pi-box"></i><span>Produtos cadastrados</span
+            ><strong>{{ products.length }}</strong
+            ><small>Disponíveis no catálogo</small>
+          </article>
+          <article>
+            <i class="pi pi-exclamation-triangle warning"></i><span>Estoque baixo</span
+            ><strong [class.low]="productsWithLowStock > 0">{{ productsWithLowStock }}</strong
+            ><small>Produtos com saldo até 2</small>
+          </article>
+          <article>
+            <i class="pi pi-file"></i><span>Notas em aberto</span><strong>{{ openInvoices }}</strong
+            ><small>Prontas para impressão</small>
+          </article>
+          <article>
+            <i class="pi pi-server success sync-status-icon"></i><span>Status da sincronização</span
+            ><strong class="status-value">{{ loading ? '...' : 'Online' }}</strong
+            ><small>Serviços conectados</small>
+          </article>
+        </div>
+        <div class="dashboard-grid">
+          <article class="panel chart-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Inventário</p>
+                <h2>Saldo dos produtos</h2>
+              </div>
+              <p-button
+                type="button"
+                label="Ver produtos"
+                severity="secondary"
+                [text]="true"
+                (onClick)="navigate('products')"
+              ></p-button>
+            </div>
+            <p-chart
+              *ngIf="stockChart.length; else emptyProducts"
+              type="bar"
+              [data]="stockChartData"
+              [options]="stockChartOptions"
+              height="240px"
+            ></p-chart
+            ><ng-template #emptyProducts
+              ><div class="empty-state">Nenhum produto cadastrado ainda.</div></ng-template
+            >
+          </article>
+          <article class="panel activity-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Faturamento</p>
+                <h2>Notas recentes</h2>
+              </div>
+              <p-button
+                type="button"
+                label="Ver notas"
+                severity="secondary"
+                [text]="true"
+                (onClick)="navigate('invoices')"
+              ></p-button>
+            </div>
+            <div class="mini-list" *ngIf="invoices.length; else emptyInvoices">
+              <div *ngFor="let invoice of invoices.slice(0, 5)">
+                <span
+                  ><strong>#{{ invoice.number }}</strong
+                  ><small>{{ invoice.items.length }} item(ns)</small></span
+                ><p-tag
+                  [value]="invoiceStatusLabel(invoice.status)"
+                  [severity]="invoiceStatusSeverity(invoice.status)"
+                ></p-tag>
+              </div>
+            </div>
+            <ng-template #emptyInvoices
+              ><div class="empty-state">Nenhuma nota criada ainda.</div></ng-template
+            >
+          </article>
+        </div>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="view === 'users' && isAdmin">
+        <header>
+          <div>
+            <p class="eyebrow">Administração</p>
+            <h1>Novo usuário</h1>
+            <span>Somente administradores podem criar acessos.</span>
+          </div>
+        </header>
+        <div class="form-grid">
+          <article class="panel form-panel">
+            <label for="new-username">Usuário</label>
+            <input pInputText id="new-username" [(ngModel)]="newUser.username" autocomplete="off" />
+            <label for="new-password">Senha</label>
+            <input pInputText id="new-password" type="password" [(ngModel)]="newUser.password" autocomplete="new-password" />
+            <label for="new-role">Papel</label>
+            <p-select
+              id="new-role"
+              [options]="[{ label: 'Operador', value: 'Operator' }, { label: 'Administrador', value: 'Admin' }]"
+              [(ngModel)]="newUser.role"
+              optionLabel="label"
+              optionValue="value"
+            ></p-select>
+            <div class="form-actions">
+              <p-button type="button" label="Criar usuário" icon="pi pi-user-plus" (onClick)="createUser()"></p-button>
+            </div>
+          </article>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="view === 'products'">
+        <header>
+          <div>
+            <p class="eyebrow">Inventory Service</p>
+            <h1>Produtos</h1>
+            <span>Consulte saldos e mantenha o catálogo atualizado.</span>
+          </div>
+          <p-button
+            *ngIf="isAdmin"
+            type="button"
+            label="Novo produto"
+            icon="pi pi-plus"
+            (onClick)="openNewProduct()"
+          ></p-button>
+        </header>
+        <article class="panel table-panel">
+          <p-table [value]="products" [tableStyle]="{ 'min-width': '40rem' }"
+            ><ng-template #header
+              ><tr>
+                <th>Código</th>
+                <th>Descrição</th>
+                <th>Saldo disponível</th>
+                <th>Valor do produto</th>
+                <th>Valor total disponível</th>
+                <th>Valor total consumido</th>
+                <th *ngIf="isAdmin" class="align-right">Ação</th>
+              </tr></ng-template
+            ><ng-template #body let-product
+              ><tr>
+                <td>
+                  <strong>{{ product.code }}</strong>
+                </td>
+                <td>{{ product.description }}</td>
+                <td>
+                  <p-tag
+                    [value]="product.availableQuantity.toString()"
+                    [severity]="product.availableQuantity <= 2 ? 'warn' : 'success'"
+                  ></p-tag>
+                </td>
+                <td>{{ formatCurrency(product.unitPrice) }}</td>
+                <td>{{ formatCurrency(product.totalAvailableValue) }}</td>
+                <td>{{ formatCurrency(product.totalConsumedValue) }}</td>
+                <td *ngIf="isAdmin" class="align-right">
+                  <p-button
+                    type="button"
+                    icon="pi pi-pencil"
+                    severity="secondary"
+                    [text]="true"
+                    pTooltip="Editar produto"
+                    *ngIf="isAdmin"
+                    (onClick)="editProduct(product)"
+                    aria-label="Editar produto"
+                  ></p-button>
+                </td></tr></ng-template
+            ><ng-template #emptymessage
+              ><tr>
+                <td [attr.colspan]="isAdmin ? 7 : 6">
+                  <div class="empty-state">
+                    Nenhum produto encontrado. Crie o primeiro produto para começar.
+                  </div>
+                </td>
+              </tr></ng-template
+            ></p-table
+          >
+        </article>
+      </ng-container>
+
+      <ng-container *ngIf="isAdmin && (view === 'product-form' || view === 'product-edit')">
+        <header>
+          <div>
+            <p class="eyebrow">Inventory Service</p>
+            <h1>{{ view === 'product-edit' ? 'Editar produto' : 'Novo produto' }}</h1>
+            <span>{{
+              view === 'product-edit'
+                ? 'Altere os dados ou exclua-o do catálogo.'
+                : 'Informe os dados para disponibilizá-lo no estoque.'
+            }}</span>
+          </div>
+          <p-button
+            type="button"
+            label="Voltar"
+            icon="pi pi-arrow-left"
+            severity="secondary"
+            (onClick)="navigate('products')"
+          ></p-button>
+        </header>
+        <article class="panel form-panel centered-product-form">
+          <div>
+            <label for="product-code">Código</label
+            ><input
+              pInputText
+              id="product-code"
+              [(ngModel)]="product.code"
+              placeholder="Ex.: PRD-001"
+              maxlength="20"
+            />
+          </div>
+          <div>
+            <label for="product-description">Descrição</label
+            ><input
+              pInputText
+              id="product-description"
+              [(ngModel)]="product.description"
+              placeholder="Ex.: Produto de exemplo"
+              maxlength="100"
+            />
+          </div>
+          <div>
+            <label for="product-quantity">Saldo disponível</label
+            ><p-inputnumber
+              inputId="product-quantity"
+              [(ngModel)]="product.availableQuantity"
+              [min]="0"
+              [minFractionDigits]="0"
+              [maxFractionDigits]="2"
+              [useGrouping]="false"
+            ></p-inputnumber>
+          </div>
+          <div>
+            <label for="product-unit-price">Valor do produto</label
+            ><p-inputnumber
+              inputId="product-unit-price"
+              [(ngModel)]="product.unitPrice"
+              mode="currency"
+              currency="BRL"
+              locale="pt-BR"
+              [min]="0"
+              [minFractionDigits]="2"
+              [maxFractionDigits]="2"
+            ></p-inputnumber>
+          </div>
+          <div class="form-actions">
+            <p-button
+              *ngIf="view === 'product-edit'"
+              type="button"
+              label="Excluir"
+              icon="pi pi-trash"
+              severity="danger"
+              [outlined]="true"
+              (onClick)="deleteProduct()"
+            ></p-button>
+            <span></span
+            ><p-button
+              type="button"
+              label="Cancelar"
+              severity="secondary"
+              (onClick)="navigate('products')"
+            ></p-button
+            ><p-button
+              type="button"
+              [label]="view === 'product-edit' ? 'Salvar alterações' : 'Cadastrar produto'"
+              icon="pi pi-check"
+              [disabled]="!isProductFormValid"
+              (onClick)="view === 'product-edit' ? updateProduct() : createProduct()"
+            ></p-button>
+          </div>
+        </article>
+      </ng-container>
+
+      <ng-container *ngIf="view === 'invoices'">
+        <header>
+          <div>
+            <p class="eyebrow">Billing Service</p>
+            <h1>Notas fiscais</h1>
+            <span>Crie, acompanhe e imprima as notas emitidas.</span>
+          </div>
+          <p-button
+            type="button"
+            label="Nova nota fiscal"
+            icon="pi pi-plus"
+            (onClick)="navigate('invoice-form')"
+          ></p-button>
+        </header>
+        <article class="panel table-panel">
+          <p-table [value]="invoices"
+            ><ng-template #header
+              ><tr>
+                <th>Número</th>
+                <th>Produtos</th>
+                <th>Quantidade</th>
+                <th>Itens</th>
+                <th>Status</th>
+                <th class="align-right">Ação</th>
+              </tr></ng-template
+            ><ng-template #body let-invoice
+              ><tr>
+                <td>
+                  <strong>#{{ invoice.number }}</strong>
+                </td>
+                <td>
+                  <span
+                    class="invoice-products"
+                    [pTooltip]="invoice.items.map(item => item.productDescription).join(', ')"
+                  >
+                    {{ invoice.items.map(item => item.productCode).join(', ') }}
+                  </span>
+                </td>
+                <td>{{ invoice.items.map(item => item.quantity).join(', ') }}</td>
+                <td>{{ invoice.items.length }} item(ns)</td>
+                <td>
+                  <p-tag
+                    [value]="invoiceStatusLabel(invoice.status)"
+                    [severity]="invoiceStatusSeverity(invoice.status)"
+                  ></p-tag>
+                </td>
+                <td class="align-right">
+                  <p-button
+                    *ngIf="invoice.status === 1"
+                    type="button"
+                    label="Imprimir"
+                    icon="pi pi-print"
+                    size="small"
+                    pTooltip="Imprimir e fechar nota"
+                    (onClick)="print(invoice)"
+                  ></p-button>
+                  <p-button
+                    *ngIf="invoice.status === 2"
+                    type="button"
+                    label="PDF"
+                    icon="pi pi-file-pdf"
+                    severity="secondary"
+                    [outlined]="true"
+                    size="small"
+                    pTooltip="Baixar PDF da nota fiscal"
+                    (onClick)="exportInvoicePdf(invoice)"
+                  ></p-button>
+                  <p-button
+                    *ngIf="invoice.status === 1"
+                    type="button"
+                    icon="pi pi-trash"
+                    severity="danger"
+                    [text]="true"
+                    size="small"
+                    pTooltip="Cancelar nota fiscal"
+                    (onClick)="requestCancelInvoice(invoice)"
+                    aria-label="Cancelar nota fiscal"
+                  ></p-button>
+                  <span *ngIf="invoice.status === 3" class="muted">{{ invoiceStatusLabel(invoice.status) }}</span>
+                </td>
+              </tr></ng-template
+            ><ng-template #emptymessage
+              ><tr>
+                <td colspan="6">
+                  <div class="empty-state">
+                    Nenhuma nota encontrada. Crie a primeira nota para começar.
+                  </div>
+                </td>
+              </tr></ng-template
+            ></p-table
+          >
+        </article>
+      </ng-container>
+
+      <ng-container *ngIf="view === 'invoice-form'">
+        <header>
+          <div>
+            <p class="eyebrow">Billing Service</p>
+            <h1>Nova nota fiscal</h1>
+            <span>Adicione os produtos que farão parte da emissão.</span>
+          </div>
+          <p-button
+            type="button"
+            label="Voltar"
+            icon="pi pi-arrow-left"
+            severity="secondary"
+            (onClick)="navigate('invoices')"
+          ></p-button>
+        </header>
+        <div class="invoice-form-grid">
+          <article class="panel form-panel">
+            <h2>Adicionar item</h2>
+            <div>
+              <label for="invoice-product">Produto</label
+              ><p-select
+                inputId="invoice-product"
+                [(ngModel)]="invoiceItem.productId"
+                [options]="productOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Selecione um produto"
+                [filter]="true"
+                filterBy="label"
+                styleClass="full-width"
+              ></p-select>
+            </div>
+            <div>
+              <label for="invoice-quantity">Quantidade</label
+              ><p-inputnumber
+                inputId="invoice-quantity"
+                [(ngModel)]="invoiceItem.quantity"
+                [min]="0.0001"
+                [minFractionDigits]="0"
+                [maxFractionDigits]="2"
+                [useGrouping]="false"
+              ></p-inputnumber>
+            </div>
+            <p-button
+              type="button"
+              label="Adicionar à nota"
+              icon="pi pi-plus"
+              (onClick)="addInvoiceItem()"
+            ></p-button>
+          </article>
+          <article class="panel selected-items">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Rascunho</p>
+                <h2>Itens da nota</h2>
+              </div>
+              <p-tag class="invoice-item-count" [value]="invoiceItems.length + ' item(ns)'" severity="primary"></p-tag>
+            </div>
+            <div class="draft-item" *ngFor="let item of invoiceItems">
+              <div>
+                <strong>{{ item.productCode }}</strong
+                ><span>{{ item.productDescription }}</span>
+              </div>
+              <span>{{ item.quantity }}</span
+              ><p-button
+                type="button"
+                icon="pi pi-times"
+                 [text]="true"
+                 class="remove-invoice-item"
+                pTooltip="Remover item"
+                (onClick)="removeInvoiceItem(item.productId)"
+                aria-label="Remover item"
+              ></p-button>
+            </div>
+            <div class="empty-state" *ngIf="!invoiceItems.length">
+              Adicione produtos para montar a nota.
+            </div>
+            <div class="form-actions">
+              <p-button
+                type="button"
+                label="Cancelar"
+                severity="secondary"
+                (onClick)="navigate('invoices')"
+              ></p-button
+              ><p-button
+                type="button"
+                label="Criar nota fiscal"
+                icon="pi pi-check"
+                [disabled]="!invoiceItems.length"
+                (onClick)="createInvoice()"
+              ></p-button>
+            </div>
+          </article>
+        </div>
+      </ng-container>
+    </section>
+    </main>
+  </div>
+</div>
+</ng-container>
+
+<ng-template #loginTemplate>
+  <main class="login-page">
+    <section class="login-card">
+      <div class="brand-mark"><i class="pi pi-box"></i></div>
+      <p class="eyebrow">Invoice</p>
+      <form (ngSubmit)="login()">
+        <label for="username">Usuário</label>
+        <input pInputText id="username" name="username" [(ngModel)]="username" autocomplete="username" required />
+        <label for="password">Senha</label>
+        <input pInputText id="password" name="password" type="password" [(ngModel)]="password" autocomplete="current-password" required />
+        <div class="feedback fail" *ngIf="authError"><i class="pi pi-exclamation-circle"></i>{{ authError }}</div>
+        <p-button type="submit" label="Entrar" icon="pi pi-sign-in" [loading]="authLoading" [disabled]="!username || !password"></p-button>
+      </form>
+    </section>
+  </main>
+</ng-template>

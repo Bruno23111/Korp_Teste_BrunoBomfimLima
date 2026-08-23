@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import 'primeicons/primeicons.css';
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  background: #090611;
+}
+
+body {
+  min-width: 320px;
+  background: var(--p-surface-ground);
+  font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+html {
+  color-scheme: light;
+  --p-surface-ground: #faf9fd;
+  --p-surface-card: #ffffff;
+  --p-surface-border: #e8e3ef;
+  --p-text-color: #7637d7;
+  --p-text-color-secondary: #64748b;
+  --p-primary-color: #7637d7;
+  --p-primary-contrast-color: #ffffff;
+  --p-primary-hover-color: #6930c2;
+  --p-primary-active-color: #5c29aa;
+  --p-primary-focus-ring-color: rgba(118, 55, 215, 0.35);
+}
+
+html.app-dark {
+  color-scheme: dark;
+  --p-surface-ground: #090909;
+  --p-surface-card: #121212;
+  --p-surface-border: #2a2a2a;
+  --p-text-color: #f8fafc;
+  --p-text-color-secondary: #cbd5e1;
+  --p-primary-color: #7637d7;
+  --p-primary-contrast-color: #ffffff;
+  --p-primary-hover-color: #8a51e0;
+  --p-primary-active-color: #6930c2;
+  --p-primary-focus-ring-color: rgba(118, 55, 215, 0.4);
+}
+
+html:not(.app-dark),
+html:not(.app-dark) body {
+  background: #faf9fd;
+}
+
+app-root {
+  display: block;
+  min-height: 100vh;
+}
